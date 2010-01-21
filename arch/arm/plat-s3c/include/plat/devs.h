@@ -78,3 +78,7 @@ extern struct platform_device s3c_device_rp;
 extern struct platform_device s5p_device_tvout;
 
 extern struct platform_device s3c_device_aes;
+
+extern struct platform_device smartq_button_device;
+extern struct platform_device smartq_pwr_button_device;
+

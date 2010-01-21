@@ -24,6 +24,12 @@
  * If you don't have time to fix the host controller driver, you can
  * work around the problem by modifying if_sdio_host_to_card() and
  * if_sdio_card_to_host() to pad the data.
+ * 
+ * ChangeLog:
+ *
+ * 2010-0119, Jackal Chan (jackal.cvkk@gmail.com)
+ *   o Added Marvell 8686 Firmware built-in.
+ *     The Firmware version is 9.70.7p0.
  */
 
 #include <linux/kernel.h>
@@ -40,7 +46,9 @@
 #include "defs.h"
 #include "dev.h"
 #include "if_sdio.h"
-
+#include "fw_sd8686.h"
+#include "fw_sd8686_helper.h"
+  
 static char *lbs_helper_name = NULL;
 module_param_named(helper_name, lbs_helper_name, charp, 0644);
 
@@ -394,13 +402,13 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 	size_t size;
 
 	lbs_deb_enter(LBS_DEB_SDIO);
-
+#if 0 /* 2010-0119, commented by CVKK(JC) */
 	ret = request_firmware(&fw, card->helper, &card->func->dev);
 	if (ret) {
 		lbs_pr_err("can't load helper firmware\n");
 		goto out;
 	}
-
+#endif
 	chunk_buffer = kzalloc(64, GFP_KERNEL);
 	if (!chunk_buffer) {
 		ret = -ENOMEM;
@@ -412,9 +420,13 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 	ret = sdio_set_block_size(card->func, 32);
 	if (ret)
 		goto release;
-
+#if 1 /* 2010-0119, added by CVKK(JC)*/
+        firmware = (unsigned char *)&fw_sd8686_helper[0];
+        size     = sizeof(fw_sd8686_helper);
+#else   
 	firmware = fw->data;
 	size = fw->size;
+#endif   
 
 	while (size) {
 		timeout = jiffies + HZ;
@@ -487,7 +499,7 @@ release:
 	sdio_release_host(card->func);
 	kfree(chunk_buffer);
 release_fw:
-	release_firmware(fw);
+//	release_firmware(fw);
 
 out:
 	if (ret)
@@ -510,13 +522,13 @@ static int if_sdio_prog_real(struct if_sdio_card *card)
 	size_t size, req_size;
 
 	lbs_deb_enter(LBS_DEB_SDIO);
-
+#if 0 /* 2010-0119, commented by CVKK(JC)*/
 	ret = request_firmware(&fw, card->firmware, &card->func->dev);
 	if (ret) {
 		lbs_pr_err("can't load firmware\n");
 		goto out;
 	}
-
+#endif
 	chunk_buffer = kzalloc(512, GFP_KERNEL);
 	if (!chunk_buffer) {
 		ret = -ENOMEM;
@@ -528,10 +540,13 @@ static int if_sdio_prog_real(struct if_sdio_card *card)
 	ret = sdio_set_block_size(card->func, 32);
 	if (ret)
 		goto release;
-
+#if 1 /* 2010-0119, added by CVKK(JC) */
+        firmware = (unsigned char *)&fw_sd8686[0];
+        size     = sizeof(fw_sd8686);
+#else
 	firmware = fw->data;
 	size = fw->size;
-
+#endif
 	while (size) {
 		timeout = jiffies + HZ;
 		while (1) {
@@ -623,7 +638,7 @@ release:
 	sdio_release_host(card->func);
 	kfree(chunk_buffer);
 release_fw:
-	release_firmware(fw);
+//	release_firmware(fw);
 
 out:
 	if (ret)

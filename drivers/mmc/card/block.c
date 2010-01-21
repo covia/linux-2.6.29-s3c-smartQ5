@@ -510,7 +510,16 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	struct mmc_blk_data *md;
 	int devidx, ret;
 
+#ifdef CONFIG_MACH_SMDK6410 /* XXX: Make sure inand devidx = 0 */
+        if (card->host->index == 0) {
+	   devidx = 0;
+	} else {
+	   __set_bit(0, dev_use);
+	   devidx = find_first_zero_bit(dev_use, MMC_NUM_MINORS);
+	}
+#else
 	devidx = find_first_zero_bit(dev_use, MMC_NUM_MINORS);
+#endif  
 	if (devidx >= MMC_NUM_MINORS)
 		return ERR_PTR(-ENOSPC);
 	__set_bit(devidx, dev_use);
@@ -549,6 +558,10 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	md->disk->fops = &mmc_bdops;
 	md->disk->private_data = md;
 	md->disk->queue = md->queue.queue;
+#ifdef CONFIG_MACH_SMDK6410 /* XXX: SD Card removable */
+        if (devidx != 0)
+           md->disk->flags |= GENHD_FL_REMOVABLE;
+#endif
 	md->disk->driverfs_dev = &card->dev;
 
 	/*

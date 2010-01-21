@@ -31,12 +31,14 @@ static struct resource s3c_hsmmc_resource[] = {
 		.end   = IRQ_HSMMC0,
 		.flags = IORESOURCE_IRQ,
 	},
+#if 0 /* 2010-0119, commented by CVKK(JC), For SmartQ5 */
+   /* To detect a card inserted, use an external interrupt */
 	[2] = {
 		.start = IRQ_EINT(6),
 		.end   = IRQ_EINT(6),
 		.flags = IORESOURCE_IRQ,
 	}
-
+#endif   
 };
 
 static u64 s3c_device_hsmmc_dmamask = 0xffffffffUL;

@@ -277,7 +277,11 @@ config FB_S3C_S6D05A
 	---help---
 	TBA
 
-
+config FB_S3C_TD043MTEX
+        bool "TD043MTEX"
+        ---help---
+        TBA
+			
 endchoice
 
 

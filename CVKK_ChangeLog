@@ -1,0 +1,45 @@
+#########################################################
+# Jackal Chan (2010-0119)
+# 
+# Project : SmartQ5
+# Platform: Samsung S3C6410
+# Kernel  : linux-kernel-2.6.29
+#   The kernel source is from
+#   Samsung BSP    
+#########################################################
+
+2010-0119 (Jackal)
+  o CVKK release version: CV_1001901-SQ-rc1
+  
+  o SD/MMC host controller device driver
+  - modified:   arch/arm/mach-s3c6410/cpu.c
+  - modified:   arch/arm/mach-s3c6410/Kconfig
+  - modified:   arch/arm/mach-s3c6410/setup-sdhci.c
+  - modified:   arch/arm/plat-s3c/dev-hsmmc.c
+  - modified:   arch/arm/plat-s3c/dev-hsmmc2.c
+  - modified:   drivers/mmc/card/block.c
+  - modified:   drivers/mmc/host/sdhci.c
+  - modified:   arch/arm/mach-s3c6410/mach-smdk6410.c
+  
+  o Marvel 8686 Wireless device driver 
+  - new file:   arch/arm/mach-s3c6410/smartq-gpio.c
+  - modified:   arch/arm/mach-s3c6410/Makefile
+  - modified:   drivers/net/wireless/libertas/if_sdio.c  
+  - new file:   drivers/net/wireless/libertas/fw_sd8686.h
+  - new file:   drivers/net/wireless/libertas/fw_sd8686_helper.h
+
+  o LCD + Backlight
+  - new file:   drivers/video/samsung/s3cfb_td043mtex.c
+  - modified:   arch/arm/plat-s3c64xx/setup-fb.c
+  - modified:   drivers/video/Kconfig
+  - modified:   drivers/video/samsung/Makefile
+
+  o Switch button
+  - new file:   arch/arm/plat-s3c/dev-gpio-button.c
+  - modified:   arch/arm/plat-s3c/Makefile
+  - modified:   arch/arm/mach-s3c6410/mach-smdk6410.c
+  - modified:   arch/arm/plat-s3c/include/plat/devs.h
+  - modified:   arch/arm/plat-s3c64xx/ltc3714.c
+  
+  o Touch Screen
+  - modified:   drivers/input/touchscreen/s3c-ts.c  

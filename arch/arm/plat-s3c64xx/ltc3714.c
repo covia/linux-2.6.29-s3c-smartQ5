@@ -34,7 +34,7 @@ static const unsigned int voltage_table[32] = {
 	975, 950, 925, 900, 875, 850, 825, 800,
 	775, 750, 725, 700, 675, 650, 625, 600,
 };
-
+#if 0
 /* LTC3714 Setting Routine */
 static int ltc3714_gpio_setting(void)
 {
@@ -58,9 +58,12 @@ static int ltc3714_gpio_setting(void)
 
 	return 0;
 }
-
+#endif
 int set_pmic(unsigned int pwr, unsigned int voltage)
 {
+#if 0
+         return 0;
+#else   
 	int position = 0;
 	int first = 0;
 
@@ -111,10 +114,12 @@ int set_pmic(unsigned int pwr, unsigned int voltage)
 	}
 	dprintk("[error]: Can't find adquate voltage table list value\n");
 	return -EINVAL;
+#endif   
 }
 
 void ltc3714_init(unsigned int arm_voltage, unsigned int int_voltage)
 {
+#if 0   
 	ltc3714_gpio_setting();
 
 	/* set maximum voltage */
@@ -122,6 +127,7 @@ void ltc3714_init(unsigned int arm_voltage, unsigned int int_voltage)
 	set_pmic(VCC_INT, int_voltage);
 
 	gpio_set_value(S3C64XX_GPL(9), 1);
+#endif   
 }
 
 EXPORT_SYMBOL(ltc3714_init);

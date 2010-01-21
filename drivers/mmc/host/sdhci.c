@@ -1174,8 +1174,10 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	host->mrq = mrq;
 
-	if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)
-		|| (host->flags & SDHCI_DEVICE_DEAD)) {
+   
+	//if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)
+	//	|| (host->flags & SDHCI_DEVICE_DEAD)) {   
+        if ( host->flags & SDHCI_DEVICE_DEAD) {
 		host->mrq->cmd->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	} else
@@ -1713,6 +1715,8 @@ int sdhci_add_host(struct sdhci_host *host)
 	{
 		mmc->caps |= (MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED);
 	}
+
+        mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	mmc->ocr_avail = 0;
 	if (caps & SDHCI_CAN_VDD_330)

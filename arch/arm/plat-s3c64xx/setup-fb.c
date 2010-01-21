@@ -77,24 +77,24 @@ int s3cfb_reset_lcd(struct platform_device *pdev)
 {
 	int err;
 
-	err = gpio_request(S3C64XX_GPN(5), "GPN");
+	err = gpio_request(S3C64XX_GPM(3), "GPN");
 	if (err) {
 		printk(KERN_ERR "failed to request GPN for "
 			"lcd reset control\n");
 		return err;
 	}
 
-	gpio_direction_output(S3C64XX_GPN(5), 1);
+	gpio_direction_output(S3C64XX_GPM(3), 1);
 
 	mdelay(100);
 
-	gpio_set_value(S3C64XX_GPN(5), 0);
+	gpio_set_value(S3C64XX_GPM(3), 0);
 	mdelay(10);
 
-	gpio_set_value(S3C64XX_GPN(5), 1);
+	gpio_set_value(S3C64XX_GPM(3), 1);
 	mdelay(10);
 
-	gpio_free(S3C64XX_GPN(5));
+	gpio_free(S3C64XX_GPM(3));
 
 	return 0;
 }

@@ -38,7 +38,7 @@
 char *s3c6410_hsmmc_clksrcs[4] = {
 	[0] = "hsmmc",
 	[1] = "hsmmc",
-	[2] = "hsmmc",
+	[2] = "mmc_bus",
 	/* [3] = "48m", - note not succesfully used yet */
 };
 
@@ -71,9 +71,10 @@ void s3c6410_setup_sdhci1_cfg_gpio(struct platform_device *dev, int width)
 		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
 		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
 	}
-
+#if 0 /* 2010-0119, commented by CVKK(JC), For SmartQ5 */
 	s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_UP);
 	s3c_gpio_cfgpin(S3C64XX_GPG(6), S3C_GPIO_SFN(3));
+#endif   
 }
 
 void s3c6410_setup_sdhci2_cfg_gpio(struct platform_device *dev, int width)

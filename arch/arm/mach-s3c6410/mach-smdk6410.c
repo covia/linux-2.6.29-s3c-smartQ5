@@ -93,7 +93,7 @@ extern struct sys_timer sec_timer;
 
 extern void s3c64xx_reserve_bootmem(void);
 
-#if defined(CONFIG_SPI_CNTRLR_0) || defined(CONFIG_SPI_CNTRLR_1)
+#if defined(CONFIG_SPI_CNTRLR_0) || defined(CONFIG_SPI_CNTRLR_1) 
 static void s3c_cs_suspend(int pin, pm_message_t pm)
 {
 	/* Whatever need to be done */
@@ -356,12 +356,22 @@ static struct s3c6410_pmem_setting pmem_setting = {
 };
 
 static struct platform_device *smdk6410_devices[] __initdata = {
+#if 1 /* 2010-0119, modified by CVKK(JC) , For SmartQ5 */
+	&s3c_device_hsmmc1, /* for inand */
+	&s3c_device_hsmmc0, 
+        &s3c_device_hsmmc2, /* for marvell 8686 wireless device */
+#else /* official kernel */
 #ifdef CONFIG_S3C6410_SD_CH0
 	&s3c_device_hsmmc0,
 #endif
 #ifdef CONFIG_S3C6410_SD_CH1
 	&s3c_device_hsmmc1,
 #endif
+#endif
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+        &smartq_button_device,
+        &smartq_pwr_button_device,
+#endif     
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 #if defined(CONFIG_SPI_CNTRLR_0)
@@ -431,7 +441,6 @@ static struct s3c_ts_mach_info s3c_ts_platform __initdata = {
 	.resol_bit 		= 12,
 	.s3c_adc_con		= ADC_TYPE_2,
 };
-
 static struct s3c_adc_mach_info s3c_adc_platform __initdata= {
 	/* Support 12-bit resolution */
 	.delay	= 	0xff,
@@ -448,7 +457,7 @@ static void __init smdk6410_map_io(void)
 	s3c_init_clocks(XTAL_FREQ);
 	s3c_init_uarts(smdk6410_uartcfgs, ARRAY_SIZE(smdk6410_uartcfgs));
 }
-
+#if 0 /* 2010-0119, commend by CVKK(JC), For SmartQ5 */
 static void __init smdk6410_smc911x_set(void)
 {
 	unsigned int tmp;
@@ -466,7 +475,7 @@ static void __init smdk6410_smc911x_set(void)
 			S3C64XX_SROM_BCn_TCAH(4) | S3C64XX_SROM_BCn_TACP(6) |
 			S3C64XX_SROM_BCn_PMC_NORMAL, S3C64XX_SROM_BC1);
 }
-
+#endif
 static void __init smdk6410_fixup (struct machine_desc *desc, struct tag *tags,
 	      char **cmdline, struct meminfo *mi)
 {
@@ -501,9 +510,11 @@ static void smdk6410_set_qos(void)
 
 static void __init smdk6410_machine_init(void)
 {
+#if 0 /* 2010-0120, commented by CVKK(JC) */   
 	s3c_device_nand.dev.platform_data = &s3c_nand_mtd_part_info;
 
 	smdk6410_smc911x_set();
+#endif
 
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
