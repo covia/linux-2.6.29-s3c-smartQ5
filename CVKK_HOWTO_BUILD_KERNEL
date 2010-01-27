@@ -1,0 +1,16 @@
+###
+# Jackal Chan (2010-0119)
+###
+
+How to build kernel
+===================
+o set the kernel tree configuration of SmartQ5
+  $ make smdk6410_cv_smartq5_defconfig
+
+o build the kernel image (uImage or zImage)
+  and the kernel image will be create in the directory "arch/arm/boot"
+  under the filename "uImage" OR "zImage"
+  
+  $ make uImage
+  OR
+  $ make zImage

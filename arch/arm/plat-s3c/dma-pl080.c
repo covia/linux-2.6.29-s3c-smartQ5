@@ -788,7 +788,9 @@ int s3c2410_dma_request(unsigned int channel,
 		chan->irq_claimed = 1;
 		local_irq_restore(flags);
 
-		err = request_irq(chan->irq, s3c_dma_irq, IRQF_SHARED | IRQF_DISABLED,
+//		err = request_irq(chan->irq, s3c_dma_irq, IRQF_SHARED | IRQF_DISABLED,
+//				  client->name, (void *) chan->dma_con);
+		err = request_irq(chan->irq, s3c_dma_irq, 0,
 				  client->name, (void *) chan->dma_con);
 
 		local_irq_save(flags);

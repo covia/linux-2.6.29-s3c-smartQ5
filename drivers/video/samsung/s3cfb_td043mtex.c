@@ -11,6 +11,10 @@
  *
  *	S3C Frame Buffer Driver
  *	based on skeletonfb.c, sa1100fb.h, s3c2410fb.c
+ * 
+ * ChangeLog:
+ *      0.1 2010-0126, Jackal Chan <jackal.cvkk@gmail.com>
+ *          - porting on SmartQ5 MID device
  */
 #include <linux/wait.h>
 #include <linux/fb.h>
@@ -48,9 +52,14 @@
 #define S3C_GPIO_OUTP 1
 #define S3C_GPIO_INP  0
 
-static int lcd_write(unsigned char,unsigned char);
-static void lcd_spi_stop(void);
-static void lcd_spi_start(void);
+//#define BACKLIGHT_STATUS_ALC    0x100
+#define BACKLIGHT_LEVEL_VALUE   0x0FF   /* 0 ~ 255 */
+
+#define BACKLIGHT_LEVEL_MIN             1
+//#define BACKLIGHT_LEVEL_DEFAULT (BACKLIGHT_STATUS_ALC | 0xFF)   /* Default Setting */
+//#define BACKLIGHT_LEVEL_MAX     (BACKLIGHT_STATUS_ALC | BACKLIGHT_LEVEL_VALUE)
+#define BACKLIGHT_LEVEL_DEFAULT 0xFF
+#define BACKLIGHT_LEVEL_MAX     0xFF
 
 int lcd_power = OFF;
 EXPORT_SYMBOL(lcd_power);
@@ -58,108 +67,21 @@ EXPORT_SYMBOL(lcd_power);
 int lcd_power_ctrl(s32 value);
 EXPORT_SYMBOL(lcd_power_ctrl);
 
-int lcd_power_ctrl(s32 value)
-{
-   int err;
-   
-   if (value) {
-      printk(KERN_INFO "LCD power on sequence start\n");
-      if (gpio_is_valid(S3C64XX_GPM(3))) {
-	 err = gpio_request(S3C64XX_GPM(3), "GPM");
-	 if (err) {
-	    printk(KERN_ERR "failed to request GPM for "
-		   "lcd reset control\n");
-	    return -1;
-	 }
-	 gpio_direction_output(S3C64XX_GPM(3), 1);
-      }
-      printk(KERN_INFO "LCD power on sequence end\n");
-   } else {
-      printk(KERN_INFO "LCD power off sequence start\n");
-      if (gpio_is_valid(S3C64XX_GPM(3))) {
-	 err = gpio_request(S3C64XX_GPM(3), "GPM");
-	 if (err) {
-	    printk(KERN_ERR "failed to request GPM for "
-		   "lcd reset control\n");
-	    return -1;
-	 }
-	 gpio_direction_output(S3C64XX_GPM(5), 0);
-      }
-      printk(KERN_INFO "LCD power off sequence end\n");
-   }
-   
-   gpio_free(S3C64XX_GPM(3));
-   lcd_power = value;
-   
-   return 0;
-}
+int backlight_power = OFF;
+EXPORT_SYMBOL(backlight_power);
 
-#define WAITTIME    (10 * HZ / 1000)    // 10ms
-#define BACKLIGHT_STATUS_ALC    0x100
-#define BACKLIGHT_LEVEL_VALUE   0x0FF   /* 0 ~ 255 */
+void backlight_power_ctrl(s32 value);
+EXPORT_SYMBOL(backlight_power_ctrl);
 
-#define BACKLIGHT_LEVEL_MIN             1
-#define BACKLIGHT_LEVEL_DEFAULT (BACKLIGHT_STATUS_ALC | 0xFF)   /* Default Setting */
-#define BACKLIGHT_LEVEL_MAX     (BACKLIGHT_STATUS_ALC | BACKLIGHT_LEVEL_VALUE)
+int backlight_level = BACKLIGHT_LEVEL_DEFAULT;
+EXPORT_SYMBOL(backlight_level);
 
-static int old_display_brightness = BACKLIGHT_LEVEL_DEFAULT;
+void backlight_level_ctrl(s32 value);
+EXPORT_SYMBOL(backlight_level_ctrl);
 
-static void __set_brightness(int val)
-{
-   int channel = 1;  // must use channel-1
-   int usec = 0;       // don't care value
-   unsigned long tcnt=1000;
-   unsigned long tcmp=0;
-   
-   if(val == BACKLIGHT_LEVEL_MAX)
-     gpio_direction_output(S3C64XX_GPF(15), 1);
-   else if(val == BACKLIGHT_LEVEL_MIN)
-     gpio_direction_output(S3C64XX_GPF(15), 0);
-   else {
-      tcmp = val * 10;
-      
-#if defined(CONFIG_S3C6410_PWM) && defined(CONFIG_PWM)
-      s3c6410_timer_setup (channel, usec, tcnt, tcmp);
-#endif
-   }
-}
-
-static void set_brightness(int val)
-{
-   int old_val = old_display_brightness;
-
-   if(val < 0) val = 0;
-   if(val > BACKLIGHT_LEVEL_MAX) val = BACKLIGHT_LEVEL_MAX;
-   
-   if(val > old_val) {
-      while((++old_val) < val) {
-	 __set_brightness(old_val);
-	 set_current_state(TASK_INTERRUPTIBLE);
-	 schedule_timeout(WAITTIME);
-      }
-   } else {
-      while((--old_val) > val) {
-	 __set_brightness(old_val);
-	 set_current_state(TASK_INTERRUPTIBLE);
-	 schedule_timeout(WAITTIME);
-      }
-   }
-   
-   __set_brightness(val);
-   old_display_brightness = val;
-}
-
-/* 2009-1030, added by CVKK(JC) , For android light */
-extern void s3cfb_set_brightness(int);
-extern int s3c_display_brightness;
-  
-static void set_backlight_power(int val)
-{
-   if(val > 0)
-     __set_brightness(old_display_brightness);
-   else
-     __set_brightness(BACKLIGHT_LEVEL_MIN);
-}
+static int lcd_write(unsigned char,unsigned char);
+static void lcd_spi_stop(void);
+static void lcd_spi_start(void);
 
 static void s3cfb_set_fimd_info(void)
 {
@@ -203,10 +125,11 @@ static void s3cfb_set_fimd_info(void)
    s3c_fimd.upper_margin = S3C_FB_VFP;
    s3c_fimd.right_margin = S3C_FB_HBP;
    s3c_fimd.lower_margin = S3C_FB_VBP;
-   
+
    s3c_fimd.set_lcd_power = lcd_power_ctrl;
-   s3c_fimd.set_backlight_power = set_backlight_power;
-   s3c_fimd.set_brightness = set_brightness;
+   s3c_fimd.set_backlight_power = backlight_power_ctrl;
+   s3c_fimd.set_brightness = backlight_level_ctrl;
+   
    s3c_fimd.backlight_min = BACKLIGHT_LEVEL_MIN;
    s3c_fimd.backlight_max = BACKLIGHT_LEVEL_MAX;
 }
@@ -314,10 +237,199 @@ void lcd_init_hw(void)
 
 void s3cfb_init_hw(void)
 {
-   printk(KERN_INFO "LCD TYPE :: TD043MTEX will be initialized\n");
-
+   printk(KERN_INFO "LCD: TD043MTEX will be initialized\n");
+   
    s3cfb_set_fimd_info();
-   s3cfb_set_gpio();
+   s3cfb_set_gpio(); /* drivers/video/samsung/s3cfb_fimd4x.c */
    lcd_init_hw();
 }
 
+#if  defined(CONFIG_S3C6410_PWM)
+extern void s3cfb_set_brightness(int val);
+#else
+void s3cfb_set_brightness(int val) {}
+#endif
+
+int lcd_power_ctrl(s32 value)
+{
+   int err;
+   
+   //printk(KERN_INFO"LCD: enable LCD power.\n");
+   if (value) {
+      //printk(KERN_INFO "LCD power on sequence start\n");
+      if (gpio_is_valid(S3C64XX_GPM(3))) {
+	 err = gpio_request(S3C64XX_GPM(3), "GPM");
+	 if (err) {
+	    printk(KERN_ERR "failed to request GPM for "
+		   "lcd reset control\n");
+	    return -1;
+	 }
+	 gpio_direction_output(S3C64XX_GPM(3), 1);
+	 mdelay(100);
+      }
+      //printk(KERN_INFO "LCD power on sequence end\n");
+   } else {
+      //printk(KERN_INFO "LCD power off sequence start\n");
+      if (gpio_is_valid(S3C64XX_GPM(3))) {
+	 err = gpio_request(S3C64XX_GPM(3), "GPM");
+	 if (err) {
+	    printk(KERN_ERR "failed to request GPM for "
+		   "lcd reset control\n");
+	    return -1;
+	 }
+	 gpio_direction_output(S3C64XX_GPM(3), 0);
+	 mdelay(100);
+      }
+      //printk(KERN_INFO "LCD power off sequence end\n");
+   }
+   
+   gpio_free(S3C64XX_GPM(3));
+   lcd_power = value;
+   
+   return 0;
+}
+
+static void backlight_ctrl(s32 value)
+{
+   int err, ret,val;
+   
+   if (value) {
+      /* backlight ON */
+      if (lcd_power == OFF) {
+	 ret = lcd_power_ctrl(ON);
+	 if (ret != 0) {
+	    printk(KERN_ERR "lcd power on control is failed\n");
+	    return;
+	 }
+      }
+      if (gpio_is_valid(S3C64XX_GPF(15))) {
+	 err = gpio_request(S3C64XX_GPF(15), "GPF");
+	 if (err) {
+	    printk(KERN_ERR "failed to request GPF for "
+		   "lcd backlight control\n");
+	 }
+	 gpio_direction_output(S3C64XX_GPF(15), 1);
+      }
+      s3cfb_set_brightness((int)(value*100/BACKLIGHT_LEVEL_MAX));
+      // s3cfb_set_brightness((int)(value/3));
+   } else {
+      ret = lcd_power_ctrl(OFF);
+      if (ret != 0) {
+	 printk(KERN_ERR "lcd power off control is failed\n");
+      }
+      /* backlight OFF */
+      if (gpio_is_valid(S3C64XX_GPF(15))) {
+	 err = gpio_request(S3C64XX_GPF(15), "GPF");
+	 if (err) {
+	    printk(KERN_ERR "failed to request GPF for "
+		   "lcd backlight control\n");
+	 }
+	 gpio_direction_output(S3C64XX_GPF(15), 0);
+      }
+   }
+   gpio_free(S3C64XX_GPF(15));
+}
+
+void backlight_level_ctrl(s32 value)
+{
+   if ((value < BACKLIGHT_LEVEL_MIN) ||    /* Invalid Value */
+       (value > BACKLIGHT_LEVEL_MAX) ||
+       (value == backlight_level))     /* Same Value */
+     return;
+   
+   if (backlight_power)  {
+      //s3cfb_set_brightness((int)(value/3));
+      s3cfb_set_brightness((int)(value*100/BACKLIGHT_LEVEL_MAX));
+   }
+   backlight_level = value;
+}
+
+void backlight_power_ctrl(s32 value)
+{
+   if ((value < OFF) ||    /* Invalid Value */
+       (value > ON) ||
+       (value == backlight_power))     /* Same Value */
+     return;
+   
+   backlight_ctrl((value ? backlight_level : OFF));
+   
+   backlight_power = value;
+}
+#define SMDK_DEFAULT_BACKLIGHT_BRIGHTNESS       255
+static DEFINE_MUTEX(smdk_backlight_lock);
+                
+static void smdk_set_backlight_level(u8 level)
+{
+   if (backlight_level == level)
+     return;
+                   
+   backlight_ctrl(level);
+   
+   backlight_level = level;
+}
+
+static void smdk_brightness_set(struct led_classdev *led_cdev, enum led_brightness value)
+{
+   mutex_lock(&smdk_backlight_lock);
+   smdk_set_backlight_level(value);
+   mutex_unlock(&smdk_backlight_lock);
+}
+
+static struct led_classdev smdk_backlight_led  = 
+{
+     .name           = "lcd-backlight",
+     .brightness = SMDK_DEFAULT_BACKLIGHT_BRIGHTNESS,
+     .brightness_set = smdk_brightness_set,
+};
+
+static int smdk_bl_probe(struct platform_device *pdev)
+{
+   led_classdev_register(&pdev->dev, &smdk_backlight_led);
+   return 0;
+}
+
+static int smdk_bl_remove(struct platform_device *pdev)
+{
+   led_classdev_unregister(&smdk_backlight_led);
+   return 0;
+}
+#ifdef CONFIG_PM
+static int smdk_bl_suspend(struct platform_device *pdev, pm_message_t state)
+{
+   led_classdev_suspend(&smdk_backlight_led);
+   return 0;
+}
+
+static int smdk_bl_resume(struct platform_device *dev)
+{
+   led_classdev_resume(&smdk_backlight_led);
+   return 0;
+}
+#else
+#define smdk_bl_suspend NULL
+#define smdk_bl_resume  NULL
+#endif
+static struct platform_driver smdk_bl_driver = 
+{
+     .probe          = smdk_bl_probe,
+     .remove         = smdk_bl_remove,
+     .suspend        = smdk_bl_suspend,
+     .resume         = smdk_bl_resume,
+     .driver         = {
+	.name   = "smdk-backlight",
+     },
+};
+
+static int __init smdk_bl_init(void)
+{
+   printk("SMDK board LCD Backlight Device Driver (c) 2008 Samsung Electronics \n");
+   
+   platform_driver_register(&smdk_bl_driver);
+   return 0;
+}
+static void __exit smdk_bl_exit(void)
+{
+   platform_driver_unregister(&smdk_bl_driver);
+}
+module_init(smdk_bl_init);
+module_exit(smdk_bl_exit);

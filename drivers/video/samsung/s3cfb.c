@@ -814,10 +814,11 @@ static int __init s3cfb_probe(struct platform_device *pdev)
 	}
 
 	s3cfb_pre_init();
+#if 0 /* 2010-0126, commented by CVKK(JC) */   
 	s3cfb_set_backlight_power(1);
 	s3cfb_set_lcd_power(1);
 	s3cfb_set_backlight_level(S3C_FB_DEFAULT_BACKLIGHT_LEVEL);
-
+#endif
 #if defined(CONFIG_PLAT_S5PC1XX)
 	info->clk = clk_get(NULL, "hclkd1");
 #else
@@ -890,6 +891,12 @@ static int __init s3cfb_probe(struct platform_device *pdev)
 
 		printk(KERN_INFO "fb%d: %s frame buffer device\n", s3c_fb_info[index].fb.node, s3c_fb_info[index].fb.fix.id);
 	}
+#if 1 /* 2010-0126,added by CVKK(JC), For SmartQ */   
+	s3cfb_set_backlight_power(1);
+	s3cfb_set_lcd_power(1);
+	s3cfb_set_backlight_level(S3C_FB_DEFAULT_BACKLIGHT_LEVEL);
+#endif   
+   
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	info->early_suspend.suspend = s3cfb_early_suspend;
 	info->early_suspend.resume = s3cfb_late_resume;

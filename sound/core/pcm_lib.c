@@ -1649,7 +1649,8 @@ static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
 			} 
 		}
 
-		if (snd_BUG_ON(runtime->dma_area)) return -EFAULT;
+//		if (snd_BUG_ON(runtime->dma_area)) return -EFAULT;
+		if (snd_BUG_ON(!(runtime->dma_area))) return -EFAULT;
 //		printk("########### frames = %d #########\n", frames);
 		if (copy_from_user(hwbuf, buf, frames_to_bytes(runtime, frames)))
 			return -EFAULT;

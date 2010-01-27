@@ -1743,7 +1743,7 @@ int s3cfb_set_gpio(void)
 
 	for (i = 0; i < 12; i++)
 		s3c_gpio_cfgpin(S3C64XX_GPJ(i), S3C_GPIO_SFN(2));
-
+#if 0 /* 2010-0126,commented by CVKK(JC), For SmartQ5 */
 	/* backlight ON */
 	if (gpio_is_valid(S3C64XX_GPF(15))) {
 		err = gpio_request(S3C64XX_GPF(15), "GPF");
@@ -1780,6 +1780,7 @@ int s3cfb_set_gpio(void)
 
 	gpio_free(S3C64XX_GPF(15));
 	gpio_free(S3C64XX_GPN(5));
+#endif   
 #endif
 	return 0;
 }

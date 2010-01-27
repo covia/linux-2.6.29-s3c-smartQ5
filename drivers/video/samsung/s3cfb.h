@@ -67,11 +67,13 @@ extern int s3c6410_timer_setup (int channel, int usec, unsigned long g_tcnt, uns
 #define S3C_FB_PALETTE_BUFF_CLEAR	(0x80000000)	/* entry is clear/invalid */
 #define S3C_FB_COLOR_KEY_DIR_BG 	0
 #define S3C_FB_COLOR_KEY_DIR_FG 	1
-#define S3C_FB_DEFAULT_BACKLIGHT_LEVEL	2
+//#define S3C_FB_DEFAULT_BACKLIGHT_LEVEL	2
+#define S3C_FB_DEFAULT_BACKLIGHT_LEVEL	255
 #define S3C_FB_MAX_DISPLAY_OFFSET	200
 #define S3C_FB_DEFAULT_DISPLAY_OFFSET	100
 #define S3C_FB_MAX_ALPHA_LEVEL		0xf
-#define S3C_FB_MAX_BRIGHTNESS		90
+//#define S3C_FB_MAX_BRIGHTNESS		90
+#define S3C_FB_MAX_BRIGHTNESS		99
 #define S3C_FB_DEFAULT_BRIGHTNESS	4
 #define S3C_FB_VS_SET 			12
 #define S3C_FB_VS_MOVE_LEFT		15

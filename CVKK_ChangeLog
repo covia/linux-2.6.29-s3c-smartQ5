@@ -7,7 +7,46 @@
 #   The kernel source is from
 #   Samsung BSP    
 #########################################################
-
+2010-0127 (Jackal)
+  o CVKK release version: CV_1001901-SQ-rc2
+ 
+  o added Blacklight control for Android and modified some bugs of LCD
+  - modified:   drivers/video/samsung/s3cfb_td043mtex.c  
+  - modified:   drivers/video/samsung/s3cfb.c
+  - modified:   drivers/video/samsung/s3cfb.h
+  - modified:   drivers/video/samsung/s3cfb_fimd4x.c
+  
+  o added `Covia' logo (splash screen)
+  - modified:   drivers/video/logo/logo_linux_clut224.ppm
+  
+  o modified 'MENU' button fucntion to support mulit-function key.
+  
+    Press         : kernel will send 'KEY_MENU' keycode  (MENU)
+    Press and Hold: kernel will send 'KEY_SYSRQ' keycode (ROTATOR)
+    
+  - modified:   drivers/input/keyboard/gpio_keys.c
+  
+  o S3C RTC driver: support for S3C6410
+  - modified:   arch/arm/plat-s3c64xx/devs.c
+  
+  o added power off support for SmartQ5 platform
+  - modified:   arch/arm/mach-s3c6410/mach-smdk6410.c
+  
+  o added GPIO initial for SmartQ5 platform
+  - modified:   arch/arm/mach-s3c6410/smartq-gpio.c
+  
+  o fixed press and hold `POWER' button bug
+  
+    Android will go into suppend mode when you press and
+    hold `POWER' button.
+    
+  - modified:   arch/arm/plat-s3c/dev-gpio-button.c
+  
+  o some cleanups
+  - modified:   arch/arm/plat-s3c/dma-pl080.c
+  - modified:   arch/arm/plat-s3c64xx/include/plat/gpio-bank-d.h
+  - modified:   sound/core/pcm_lib.c
+  
 2010-0119 (Jackal)
   o CVKK release version: CV_1001901-SQ-rc1
   

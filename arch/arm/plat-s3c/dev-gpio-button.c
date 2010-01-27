@@ -1,5 +1,5 @@
 /*
- * 
+ * 2010-0120, Jackal Chan <jackal.cvkk@gmail.com>
  */
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -54,13 +54,14 @@ static struct gpio_keys_button smartq_pwr_button[] = {
 	  .code           = KEY_POWER,
 	  .desc           = "KEY5",
 	  .active_low     = 1,
-	  .debounce_interval = 5,
+	  .debounce_interval = 100,
      },
 };
+
 static struct gpio_keys_platform_data smartq_pwr_button_data = {
      .buttons        = smartq_pwr_button,
      .nbuttons       = ARRAY_SIZE(smartq_pwr_button),
-     .rep            = 1,
+     .rep            = 0,
 };
 
 struct platform_device smartq_pwr_button_device = {

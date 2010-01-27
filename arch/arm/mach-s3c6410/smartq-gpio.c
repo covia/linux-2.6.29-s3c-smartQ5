@@ -1,4 +1,5 @@
-/* 
+/*
+ * 2010-0120, Jackal Chan <jackal.cvkk@gmail.com>
  */
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -28,16 +29,14 @@ static int __init smartq_wifi_init(void)
 {
    int ret;
    
-   ret = gpio_request(S3C64XX_GPK(1), "wifi_enable");
+   ret = gpio_request(S3C64XX_GPK(1), "GPK");
    if (ret < 0) {
-      pr_err("%s: failed to get GPK1\n", __func__);
+      pr_err("%s: failed to request GPK1 for WiFi power control.\n", __func__);
       return ret;
    }
-   
-   ret = gpio_request(S3C64XX_GPK(2), "wifi_reset");
+   ret = gpio_request(S3C64XX_GPK(2), "GPK");
    if (ret < 0) {
-      pr_err("%s: failed to get GPK2\n", __func__);
-      gpio_free(S3C64XX_GPK(1));
+      pr_err("%s: failed to request GPK2 for WiFi reset.\n", __func__);
       return ret;
    }
    
@@ -48,22 +47,29 @@ static int __init smartq_wifi_init(void)
    gpio_direction_output(S3C64XX_GPK(2), 0);
    mdelay(100);
    gpio_set_value(S3C64XX_GPK(2), 1);
+   mdelay(100);
    
+   gpio_free(S3C64XX_GPK(1));
+   gpio_free(S3C64XX_GPK(2));
    return 0;
-}
-
-static int __init smartq_sd_wp_init(void)
-{
-   gpio_direction_input(S3C64XX_GPK(0));
 }
 
 static int __init s3c6410_smartq_gpio_init(void)
 {
-   printk(KERN_INFO"SMARTQ: WiFI GPIO initial.\n");
+   /* WiFi: power save and reset control */
    smartq_wifi_init();
-   printk(KERN_INFO"SMARTQ: SD WP initial.\n");   
-   smartq_sd_wp_init();
-   
+   /* SD  : WP */
+   gpio_direction_input(S3C64XX_GPK(0)); /* GPIO-104 */   
+   /* AUDIO: headphone status GPIO initial */
+   gpio_direction_input(S3C64XX_GPL(12)); /* GPIO-133 */
+   /* AUDIO: speaker output GPIO initial */
+   gpio_direction_output(S3C64XX_GPK(12),1); /* GPIO-116 */
+   /* USB: external power GPL0 */
+   gpio_direction_output(S3C64XX_GPL(0),1); /* GPIO-121 */
+   /* USB:               GPL1 */
+   gpio_direction_output(S3C64XX_GPL(1),1); /* GPIO-122 */
+   /* AC insert detect GPL13 */
+   gpio_direction_input(S3C64XX_GPL(13)); /* GPIO-134 */
    return 0;
 }
 __initcall(s3c6410_smartq_gpio_init);

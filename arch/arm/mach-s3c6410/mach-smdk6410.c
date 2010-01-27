@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
-
+#include <linux/reboot.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -73,9 +73,11 @@
 
 /* S3C_USB_CLKSRC 0: EPLL 1: CLK_48M */
 #define S3C_USB_CLKSRC	1
+#define USB_HOST_PORT2_EN // JC
 
 #ifdef USB_HOST_PORT2_EN
-#define OTGH_PHY_CLK_VALUE      (0x60)  /* Serial Interface, otg_phy input clk 48Mhz Oscillator */
+//#define OTGH_PHY_CLK_VALUE      (0x60)  /* Serial Interface, otg_phy input clk 48Mhz Oscillator */
+#define OTGH_PHY_CLK_VALUE      (0x42)  /* Serial Interface, otg_phy input clk 48Mhz Oscillator */
 #else
 #define OTGH_PHY_CLK_VALUE      (0x20)  /* UTMI Interface, otg_phy input clk 48Mhz Oscillator */
 #endif
@@ -448,10 +450,30 @@ static struct s3c_adc_mach_info s3c_adc_platform __initdata= {
 	.resolution = 	12,
 };
 
+static void s3c_smartq_poweroff(void)
+{
+   int dc_status = 0;
+   
+   dc_status = gpio_get_value(S3C64XX_GPL(13));
+   printk(KERN_INFO"DC status [%d]\n",dc_status);
+   
+   /* disable speaker */
+   gpio_set_value(S3C64XX_GPK(12), 0);
+   if (dc_status)
+     machine_restart(NULL);
+   else {
+      // clear the LCD screen to white      
+      //s3cfb_clear_lcd(0);
+      gpio_direction_output(S3C64XX_GPK(15), 1);
+   }
+}
+
 static void __init smdk6410_map_io(void)
 {
 	s3c_device_nand.name = "s3c6410-nand";
-
+#if 1 /* 2010-0126, added by CVKK(JC), For SmartQ5 */
+        pm_power_off = s3c_smartq_poweroff;
+#endif   
 	s3c64xx_init_io(smdk6410_iodesc, ARRAY_SIZE(smdk6410_iodesc));
 	s3c64xx_gpiolib_init();
 	s3c_init_clocks(XTAL_FREQ);
