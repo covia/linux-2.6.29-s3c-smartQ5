@@ -7,6 +7,66 @@
 #   The kernel source is from
 #   Samsung BSP    
 #########################################################
+2010-0204 (Jackal)
+  o Covia release version:CV_1001901-SQ-rc3
+  
+  o added audio codec(WM8987) support
+    - new file:   arch/arm/plat-s3c/dev-audio.c
+    - new file:   arch/arm/plat-s3c/include/plat/regs-s3c2412-iis.h
+    - new file:   sound/soc/codecs/wm8987.c
+    - new file:   sound/soc/codecs/wm8987.h
+    - new file:   sound/soc/s3c24xx/s3c-i2s-v2.c
+    - new file:   sound/soc/s3c24xx/s3c-i2s-v2.h
+    - new file:   sound/soc/s3c24xx/s3c64xx-i2s.c
+    - new file:   sound/soc/s3c24xx/s3c64xx-i2s.h
+    - new file:   sound/soc/s3c24xx/smdk6410_wm8987.c
+    - modified:   arch/arm/mach-s3c6400/include/mach/map.h
+    - modified:   arch/arm/mach-s3c6410/mach-smdk6410.c
+    - modified:   arch/arm/mach-s3c6410/smartq-gpio.c
+    - modified:   arch/arm/plat-s3c/Makefile
+    - modified:   arch/arm/plat-s3c/include/plat/devs.h
+    - modified:   arch/arm/plat-s3c64xx/setup-i2c0.c
+    - modified:   sound/soc/s3c24xx/Kconfig
+    - modified:   sound/soc/s3c24xx/Makefile
+    - modified:   sound/soc/s3c24xx/s3c24xx-pcm.c
+
+  o remove audio patches from Samsung
+    - modified:   include/sound/pcm.h
+    - modified:   include/sound/soc-dapm.h
+    - modified:   include/sound/soc.h
+    - deleted:    include/sound/soc_27.h
+    - modified:   sound/core/pcm_lib.c
+    - deleted:    sound/core/smallfilter.h
+    - modified:   sound/soc/Kconfig
+    - modified:   sound/soc/Makefile
+    - modified:   sound/soc/codecs/Kconfig
+    - modified:   sound/soc/codecs/Makefile
+    - modified:   sound/soc/codecs/wm8580.c
+    - modified:   sound/soc/codecs/wm8580.h
+    - modified:   sound/soc/codecs/wm8990.c
+    - modified:   sound/soc/codecs/wm8990.h
+    - deleted:    sound/soc/s3c/Kconfig
+    - deleted:    sound/soc/s3c/Makefile
+    - deleted:    sound/soc/s3c/s3c-ac97.c
+    - deleted:    sound/soc/s3c/s3c-ac97.h
+    - deleted:    sound/soc/s3c/s3c-i2s-v50.c
+    - deleted:    sound/soc/s3c/s3c-i2s-v50.h
+    - deleted:    sound/soc/s3c/s3c-i2s.c
+    - deleted:    sound/soc/s3c/s3c-i2s.h
+    - deleted:    sound/soc/s3c/s3c-pcm-v50.c
+    - deleted:    sound/soc/s3c/s3c-pcm-v50.h
+    - deleted:    sound/soc/s3c/s3c-pcm.c
+    - deleted:    sound/soc/s3c/s3c-pcm.h
+    - deleted:    sound/soc/s3c/smdk6410_s5m8751.c
+    - deleted:    sound/soc/s3c/smdk6410_wm8580.c
+    - deleted:    sound/soc/s3c/smdk6410_wm9713.c
+    - deleted:    sound/soc/s3c/smdk6440_s5m8751.c
+    - deleted:    sound/soc/s3c/smdk6440_wm8580.c
+    - deleted:    sound/soc/s3c/smdkc100_s5m8751.c
+    - deleted:    sound/soc/s3c/smdkc100_wm8580.c
+    - deleted:    sound/soc/s3c/smdkc100_wm9713.c
+    - modified:   sound/soc/soc-dapm.c
+
 2010-0127 (Jackal)
   o CVKK release version: CV_1001901-SQ-rc2
  

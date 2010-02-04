@@ -41,3 +41,4 @@ obj-y				+= dev-i2c0.o
 obj-$(CONFIG_S3C_DEV_I2C1)	+= dev-i2c1.o
 obj-$(CONFIG_TOUCHSCREEN_S3C)	+= dev-ts.o
 obj-$(CONFIG_KEYBOARD_GPIO)     += dev-gpio-button.o
+obj-$(CONFIG_SND_S3C64XX_SOC_I2S) += dev-audio.o

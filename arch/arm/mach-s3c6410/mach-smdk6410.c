@@ -374,6 +374,9 @@ static struct platform_device *smdk6410_devices[] __initdata = {
         &smartq_button_device,
         &smartq_pwr_button_device,
 #endif     
+#if defined(CONFIG_SND_S3C64XX_SOC_I2S)     
+        &s3c64xx_device_iis0,
+#endif     
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 #if defined(CONFIG_SPI_CNTRLR_0)

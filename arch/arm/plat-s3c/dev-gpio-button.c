@@ -1,5 +1,17 @@
-/*
- * 2010-0120, Jackal Chan <jackal.cvkk@gmail.com>
+/**
+ * @file dev-gpio-button.c
+ * 
+ * Project : SmartQ5 MID
+ * 
+ * Description : 
+ *   GPIO button key definition
+ * 
+ * ChangeLog:
+ *   0.1 2010-0120,
+ *       - initial 
+ * 
+ * @author Jackal Chan(jackal.cvkk@gmail.com) , Copyright (C) 2010 Covia
+ * @date   2001-0120
  */
 #include <linux/gpio_keys.h>
 #include <linux/input.h>

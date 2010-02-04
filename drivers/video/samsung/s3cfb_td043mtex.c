@@ -14,7 +14,7 @@
  * 
  * ChangeLog:
  *      0.1 2010-0126, Jackal Chan <jackal.cvkk@gmail.com>
- *          - porting on SmartQ5 MID device
+ *          - porting on SmartQ5 MID
  */
 #include <linux/wait.h>
 #include <linux/fb.h>

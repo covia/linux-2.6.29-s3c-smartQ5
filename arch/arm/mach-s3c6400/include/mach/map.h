@@ -78,6 +78,8 @@
 #define S3C64XX_PA_AC97		(0x7F001000)
 #define S3C64XX_PA_IIS_V32	(0x7F002000)
 #define S3C64XX_PA_IIS_V40 	(0x7F00D000)
+#define S3C64XX_PA_IIS0         (0x7F002000)
+#define S3C64XX_PA_IIS1         (0x7F003000)
 #define S3C_SZ_IIS		SZ_8K
 
 /* DMA controller */
