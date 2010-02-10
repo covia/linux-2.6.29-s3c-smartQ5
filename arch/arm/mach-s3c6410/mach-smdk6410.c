@@ -356,9 +356,16 @@ static struct s3c6410_pmem_setting pmem_setting = {
         .pmem_skia_start = SKIA_RESERVED_PMEM_START,
         .pmem_skia_size = RESERVED_PMEM_SKIA,
 };
-
+#if 1 /* 2010-0208, added by CVKK(JC) */
+struct platform_device smartq_gpio = {
+     .name           = "smartq_gpio",
+     .id             = -1,
+     .num_resources  = 0,
+};
+#endif
 static struct platform_device *smdk6410_devices[] __initdata = {
 #if 1 /* 2010-0119, modified by CVKK(JC) , For SmartQ5 */
+        &smartq_gpio,
 	&s3c_device_hsmmc1, /* for inand */
 	&s3c_device_hsmmc0, 
         &s3c_device_hsmmc2, /* for marvell 8686 wireless device */
@@ -585,6 +592,18 @@ MACHINE_END
 
 #ifdef CONFIG_USB_SUPPORT
 /* Initializes OTG Phy. */
+#if 1 /* 2010-0210, modified by CVKK(JC), For SmartQ5 */
+void otg_phy_init(u32 otg_phy_clk)
+{
+	writel(readl(S3C_OTHERS)|S3C_OTHERS_USB_SIG_MASK, S3C_OTHERS);
+	writel(0x0, S3C_USBOTG_PHYPWR);		/* Power up */
+        writel(otg_phy_clk, S3C_USBOTG_PHYCLK);
+	writel(0x1, S3C_USBOTG_RSTCON);
+	udelay(50);
+	writel(0x0, S3C_USBOTG_RSTCON);
+	udelay(50);
+}
+#else
 void otg_phy_init(void) {
 
 	writel(readl(S3C_OTHERS)|S3C_OTHERS_USB_SIG_MASK, S3C_OTHERS);
@@ -596,6 +615,7 @@ void otg_phy_init(void) {
 	writel(0x0, S3C_USBOTG_RSTCON);
 	udelay(50);
 }
+#endif
 EXPORT_SYMBOL(otg_phy_init);
 
 /* USB Control request data struct must be located here for DMA transfer */
@@ -626,7 +646,8 @@ void usb_host_clk_en(void) {
 		otg_clk = clk_get(NULL, "otg");
 		clk_enable(otg_clk);
 		writel(readl(S3C_CLK_SRC)& ~S3C6400_CLKSRC_UHOST_MASK, S3C_CLK_SRC);
-		otg_phy_init();
+//		otg_phy_init();
+		otg_phy_init(OTGH_PHY_CLK_VALUE);
 
 		/* USB host colock divider ratio is 1 */
 		writel(readl(S3C_CLK_DIV1)& ~S3C6400_CLKDIV1_UHOST_MASK, S3C_CLK_DIV1);

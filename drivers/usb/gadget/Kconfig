@@ -725,7 +725,8 @@ config USB_G_PRINTER
 	  which includes sample code for accessing the device file.
 
 config USB_ANDROID_ADB_UMS
-	bool "Android Composite(ADB + UMS) Gadget"
+#	bool "Android Composite(ADB + UMS) Gadget"
+	tristate "Android Composite(ADB + UMS) Gadget"
 	depends on SWITCH
 	help
 	  The Android gadget provides mass storage and adb transport.

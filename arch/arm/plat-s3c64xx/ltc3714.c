@@ -61,7 +61,7 @@ static int ltc3714_gpio_setting(void)
 #endif
 int set_pmic(unsigned int pwr, unsigned int voltage)
 {
-#if 0
+#if 1
          return 0;
 #else   
 	int position = 0;

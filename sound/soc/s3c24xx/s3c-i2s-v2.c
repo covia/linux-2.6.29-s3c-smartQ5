@@ -553,7 +553,7 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 	unsigned int best_rate = 0;
 	unsigned int best_deviation = INT_MAX;
         struct clk *fclk;
-	pr_debug("Input clock rate %ldHz\n", clkrate);
+//	pr_debug("Input clock rate %ldHz\n", clkrate);
    
    /* 2010-0203, added by CVKK(JC), For SmartQ5 */
 	fclk = clk_get(NULL, "fout_epll");
@@ -602,8 +602,8 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 		actual = clkrate / (fsdiv * div);
 		deviation = actual - rate;
 
-		printk(KERN_DEBUG "%ufs: div %u => result %u, deviation %d\n",
-		       fsdiv, div, actual, deviation);
+//		printk(KERN_DEBUG "%ufs: div %u => result %u, deviation %d\n",
+//		       fsdiv, div, actual, deviation);
 
 		deviation = abs(deviation);
 
@@ -618,8 +618,8 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 			break;
 	}
 
-	printk(KERN_DEBUG "best: fs=%u, div=%u, rate=%u\n",
-	       best_fs, best_div, best_rate);
+//	printk(KERN_DEBUG "best: fs=%u, div=%u, rate=%u\n",
+//	       best_fs, best_div, best_rate);
 
 	info->fs_div = best_fs;
 	info->clk_div = best_div;

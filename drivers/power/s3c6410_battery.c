@@ -28,7 +28,11 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <plat/gpio-cfg.h>
-
+#if 1 /* TERRY(2010-0201) */
+#include <plat/regs-gpio.h>
+#include <asm/io.h> // __raw_readl(), __raw_write()
+#endif
+  
 #include "s3c6410_battery.h"
 
 static struct wake_lock vbus_wake_lock;
@@ -43,8 +47,12 @@ static ssize_t s3c_bat_store(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count);
 
+#if 1 /* TERRY(2010-0201) */
+#define WARNING_BAT_LEVEL 10
+#else
 #define FAKE_BAT_LEVEL	80
-
+#endif
+  
 static struct device *dev;
 static int s3c_battery_initial;
 static int force_update;
@@ -87,16 +95,223 @@ struct s3c_battery_info {
 	int present;
 	int polling;
 	unsigned long polling_interval;
-
+#if 1 /* TERRY(2010-0201): For periodic battery level check */
+        struct delayed_work monitor_work;
+#endif
 	struct battery_info bat_info;
 };
 static struct s3c_battery_info s3c_bat_info;
 
-static int s3c_get_bat_level(struct power_supply *bat_ps)
+#if 1 /* TERRY(2010-0201): SmartQ5 platform specific operation */
+extern unsigned int s3c_adc_value(unsigned int s3c_adc_port);
+static int led_update = 0;
+
+static int get_dc_status_gpio(void)
 {
-	return FAKE_BAT_LEVEL;
+   static int current_dc_status = 0;
+   
+   /* if someone else locks this pin, just return stored status */
+   if (gpio_request(S3C64XX_GPL(13), "dc_status") < 0) {
+      dev_dbg(dev, "%s : Cannot request S3C64XX_GPL(13)\n", __func__);
+      return current_dc_status;
+   }
+   
+   /* initialize the pin */
+   gpio_direction_input(S3C64XX_GPL(13));
+   
+   /* get value, 1-on, 0-off for smartQ5 */
+   current_dc_status = gpio_get_value(S3C64XX_GPL(13));
+   
+   /* unlock GPIO resource */
+   gpio_free(S3C64XX_GPL(13));
+   
+   return current_dc_status;
 }
 
+/* In SmartQ5, the battery's charging status is as below,
+ * +---------------+------+------+-----+
+ * | Battery state | GPK4 | GPK5 | ret |
+ * +---------------+------+------+-----+
+ * | Full charged  |  1   |  0   |  2  |
+ * +---------------+------+------+-----+
+ * | Charging      |  0   |  1   |  1  |
+ * +---------------+------+------+-----+
+ * |               |  0   |  0   |  0  |
+ * | Discharging   +------+------+-----+
+ * |               |  1   |  1   |  3  |
+ * +---------------+------+------+-----+
+ *
+ * "ret" means the return value of this function.
+ */
+static int get_charge_status_gpio(void)
+{
+   return (gpio_get_value(S3C64XX_GPK(4)) << 1) + gpio_get_value(S3C64XX_GPK(5));
+}
+
+/* Set LED color by GPIO
+ * value:
+ *   0 - OFF
+ *   1 - RED
+ *   2 - GREEN
+ *   3 - ORANGE
+ */
+static int set_led_gpio(int value)
+{
+   /* Request the lock */
+   if (gpio_request(S3C64XX_GPN(8), "led_red") < 0) {
+      dev_dbg(dev, "%s : Cannot request S3C64XX_GPN(8)\n", __func__);
+      return -1;
+   }
+   
+   if (gpio_request(S3C64XX_GPN(9), "led_green") < 0) {
+      dev_dbg(dev, "%s : Cannot request S3C64XX_GPN(9)\n", __func__);
+      gpio_free(S3C64XX_GPN(8));
+      return -1;
+   }
+   
+   /* Initialize */
+   gpio_direction_output(S3C64XX_GPN(8), 0);
+   gpio_direction_output(S3C64XX_GPN(9), 0);
+   
+   /* Set value */
+   if (value & 1) gpio_set_value(S3C64XX_GPN(8), 1);
+   if (value & 2) gpio_set_value(S3C64XX_GPN(9), 1);
+   
+   /* Unlock GPIO resource */
+   gpio_free(S3C64XX_GPN(8));
+   gpio_free(S3C64XX_GPN(9));
+   
+   return 0;
+}
+
+/* Read battery level from ADC, the range is 0-1000 */
+static int read_battery(void)
+{
+   int battery_life = 0, reference_value = 0;
+   static int old_battery_life = 0, old_reference_value = 0;
+   
+   //ref voltage:2.4V,battery max :4.2V
+   if ((battery_life = s3c_adc_value(0)) == 0) {
+      if (old_battery_life == 0) {
+	 while (!(battery_life = s3c_adc_value(0)));
+	 old_battery_life = battery_life;
+      } else
+	battery_life = old_battery_life;
+   }
+   
+   if ((reference_value = s3c_adc_value(1)) == 0) {
+      if (old_reference_value == 0) {
+	 while (!(reference_value = s3c_adc_value(1)));
+	 old_reference_value = reference_value;
+      } else
+	reference_value = old_reference_value;
+   }
+   
+   battery_life = (battery_life * 24000) / (reference_value * 42);
+   
+   return battery_life;
+}
+
+static int get_battery_life(void)
+{
+   int i;
+   int count = 0;
+   int battery_life = 1000;//Default max power
+   int battery_life_sum = 0;
+   int voltage;
+   
+   for (i = 0; i < 10; i++) {
+      int tmp = read_battery();
+      if (tmp < 700 || tmp > 1000)
+	continue;
+      battery_life_sum += tmp;
+      count++;
+   }
+   
+   if (count)
+     battery_life = battery_life_sum / count;
+  
+   voltage = (battery_life * 42 * 100)/10000;
+   mdelay(20);
+   return voltage;
+}
+ 
+static int s3c_get_bat_level(struct power_supply *bat_ps)
+{
+//	return FAKE_BAT_LEVEL;
+   int val, scale = 10;
+   int interval, voltage, dc_status;
+   int current_battery;
+   static int pre_battery = 100;
+   static int sysbooting = 3;
+   
+   voltage = get_battery_life();
+   
+   if (voltage <= 340) {
+      // <=3.4v --> empty
+      current_battery = 0;
+   } else if (voltage <= 355) {  // 0% ~ 25%(3.4v ~ 3.55v)
+      interval = (355 - 340) * scale / 25;
+      current_battery = (voltage - 340) * scale / interval;
+   } else if (voltage <= 365) {  // 25% ~ 50%(3.55v ~ 3.65v)
+      interval = (365 - 355) * scale / 25;
+      current_battery = (voltage - 355) * scale / interval + 25;
+   } else if (voltage <= 385) {  // 50% ~ 75%(3.85v ~ 3.65v)
+      interval = (385 - 365) * scale / 25;
+      current_battery = (voltage - 365) * scale / interval + 50;
+   } else if (voltage <= 420) {  // 75% ~ 100%(4.2v ~ 3.85v)
+      interval = (420 - 385) * scale / 25;
+      current_battery = (voltage - 385) * scale / interval + 75;
+   } else {
+      current_battery = 100;
+   }
+   val = get_charge_status_gpio();
+   if (val == 2) {
+      current_battery = 100;
+   } else if (val == 1 && current_battery >= 100) {
+      current_battery = 99;
+   }
+   
+   // if now the AC adapter is off, the battery life should be decreased.
+   // So if the current_battery is greater than before when AC adapter is unplugged,
+   // we only return the lower one.
+   dc_status = get_dc_status_gpio();
+   
+# ifdef CONFIG_ANDROID_POWER
+   // When system is preparing into suspend mode, the ADC clock will be
+   // disabled. The battery can't be read correctly. So we hold the previous
+   // value. The value will be updated after resumed.
+   if (early_saved_mem) {
+      current_battery = pre_battery;
+      goto next;
+   }
+# endif
+   
+   // When system is booting and AC plug-in, the val of current_battery
+   //  will be pre_battery(100) according the following equation. So we
+   //  need throw away the value
+   if (dc_status == 1) {
+      if (sysbooting > 0) {
+	 sysbooting--;
+      } else {
+	 current_battery = max(pre_battery, current_battery);
+      }
+   }
+   else if (dc_status == 0) {
+      current_battery = min(pre_battery, current_battery);
+   }
+   
+# ifdef CONFIG_ANDROID_POWER
+next:
+# endif
+   pre_battery = current_battery;
+   
+   mdelay(20);
+//   printk("s3c_get_battery_life : current_battery is %d\n", current_battery); // chr$
+   return current_battery;
+}
+#endif
+     
 static int s3c_get_bat_vol(struct power_supply *bat_ps)
 {
 	int bat_vol = 0;
@@ -431,7 +646,14 @@ static void s3c_bat_status_update(struct power_supply *bat_ps)
 	s3c_bat_info.bat_info.batt_temp = s3c_get_bat_temp(bat_ps);
 	s3c_bat_info.bat_info.level = s3c_get_bat_level(bat_ps);
 	s3c_bat_info.bat_info.batt_vol = s3c_get_bat_vol(bat_ps);
-
+#if 1 /* TERRY(2010-0201): Update .batt_is_full */
+   if (s3c_bat_info.bat_info.level == 100) {
+      s3c_bat_info.bat_info.batt_is_full = 1;
+   }if (old_is_full != s3c_bat_info.bat_info.batt_is_full) {
+      led_update = 1;
+   }
+#endif
+     
 	if (old_level != s3c_bat_info.bat_info.level 
 			|| old_temp != s3c_bat_info.bat_info.batt_temp
 			|| old_is_full != s3c_bat_info.bat_info.batt_is_full
@@ -447,6 +669,8 @@ static void s3c_bat_status_update(struct power_supply *bat_ps)
 
 void s3c_cable_check_status(int flag)
 {
+#if 0 /* TERRY(2010-0201): This is no need 'cos we poll the status from gpio */
+     
     charger_type_t status = 0;
 
     if (flag == 0)  // Battery
@@ -454,9 +678,57 @@ void s3c_cable_check_status(int flag)
     else    // USB
 		status = CHARGER_USB;
     s3c_cable_status_update(status);
+#endif
+    
 }
 EXPORT_SYMBOL(s3c_cable_check_status);
+#if 1 /* TERRY(2010-0201): Polling function */
+static void s3c_power_work(struct work_struct* work)
+{
+   int dc_status, source;
 
+   // Get dc cable status from gpio
+   dc_status = get_dc_status_gpio();
+   
+   // Update cable status
+   if (dc_status == 0) {
+      source = CHARGER_BATTERY;
+   } else if (dc_status == 1) {
+      source = CHARGER_AC;
+   } else {
+      // If GPIO status is not available for now, skip it
+      schedule_delayed_work(&s3c_bat_info.monitor_work, HZ);
+      return;
+   }
+	
+   if (source != s3c_bat_info.bat_info.charging_source) {
+      led_update = 1;
+      s3c_cable_status_update(source);
+   }
+	
+   // Update battery status
+   s3c_bat_status_update(&s3c_power_supplies[CHARGER_BATTERY]);
+   
+   // Update LED status
+   if (led_update) {
+      int led_color = 2; // GREEN
+      if (!s3c_bat_info.bat_info.batt_is_full) {
+	 if (s3c_bat_info.bat_info.charging_source == CHARGER_AC) {
+	    led_color = 1; // RED
+	 } else if (s3c_bat_info.bat_info.level <= WARNING_BAT_LEVEL) {
+	    led_color = 3; // ORANGE
+	 }
+      }
+      if (set_led_gpio(led_color) == 0) {
+	 led_update = 0;
+      }
+   }
+   
+   // schedule next work
+   schedule_delayed_work(&s3c_bat_info.monitor_work, 4 * HZ);
+}
+#endif
+     
 #ifdef CONFIG_PM
 static int s3c_bat_suspend(struct platform_device *pdev, 
 		pm_message_t state)
@@ -513,13 +785,18 @@ static int __devinit s3c_bat_probe(struct platform_device *pdev)
 
 	/* create sec detail attributes */
 	s3c_bat_create_attrs(s3c_power_supplies[CHARGER_BATTERY].dev);
-
+#if 1 /* TERRY(2010-0201): Init and lauch polling function */
+   INIT_DELAYED_WORK(&s3c_bat_info.monitor_work, s3c_power_work);
+   schedule_delayed_work(&s3c_bat_info.monitor_work, 4 * HZ);
+#endif
+     
 	s3c_battery_initial = 1;
 	force_update = 0;
-
+#if 0 /* TERRY(2010-0201) */
 	s3c_bat_status_update(
 			&s3c_power_supplies[CHARGER_BATTERY]);
-
+#endif
+     
 __end__:
 	return ret;
 }
@@ -548,6 +825,29 @@ static struct platform_driver s3c_bat_driver = {
 /* Initailize GPIO */
 static void s3c_bat_init_hw(void)
 {
+#if 1 /* TERRY(2010-0201) */
+   unsigned int val;
+   
+   /* Initialize GPK */
+   val = __raw_readl(S3C64XX_GPKPUD);
+   val &= ~((3<<8)|(3<<10)|(3<<12));
+   val |= (2<<12);
+   __raw_writel(val, S3C64XX_GPKPUD);
+   
+   /* Init CHARG_S1, S2 */
+   if (gpio_request(S3C64XX_GPK(4), "charge_s1") == 0) {
+      gpio_direction_input(S3C64XX_GPK(4));
+   }
+   
+   if (gpio_request(S3C64XX_GPK(5), "charge_s2") < 0) {
+      gpio_direction_input(S3C64XX_GPK(5));
+   }
+   
+   /* Charger current set to 200mA, and lock this GPIO */
+   if (gpio_request(S3C64XX_GPK(6), "charger_en") == 0) {
+      gpio_direction_output(S3C64XX_GPK(6), 0);
+   }
+#endif
 }
 
 static int __init s3c_bat_init(void)

@@ -100,6 +100,11 @@ static struct resource		*ts_irq;
 static struct clk		*ts_clock;
 static struct s3c_ts_info 	*ts;
 
+#if 1 /* TERRY(2010-0201): For reading battery level from ADC */
+static unsigned long data_for_ADCCON;
+static unsigned long data_for_ADCTSC;
+static int ts_pressed = 0;
+#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct early_suspend	early_suspend;
 
@@ -212,12 +217,71 @@ static void touch_timer_fire(unsigned long data)
 		input_sync(ts->dev);
 
 		writel(WAIT4INT(0), ts_base+S3C_ADCTSC);
+#if 1 /* TERRY(2010-0201): For reading battery level from ADC */
+		ts_pressed = 0;
+#endif
 	}
 }
 
 static struct timer_list touch_timer =
 		TIMER_INITIALIZER(touch_timer_fire, 0, 0);
 
+#if 1 /* TERRY(2010-0201): For reading battery level from ADC */
+static void s3c_adc_save_SFR_on_ADC(void)
+{
+	data_for_ADCCON = readl(ts_base+S3C_ADCCON);
+	data_for_ADCTSC = readl(ts_base+S3C_ADCTSC);
+}
+
+static void s3c_adc_restore_SFR_on_ADC(void)
+{
+	writel(data_for_ADCCON, ts_base+S3C_ADCCON);
+	writel(data_for_ADCTSC, ts_base+S3C_ADCTSC);
+}
+
+unsigned int s3c_adc_value(unsigned int s3c_adc_port)
+{
+	unsigned int adc_return = 0;
+	unsigned long data0;
+	unsigned long data1;
+
+	if (ts_pressed)
+		return 0;
+
+	disable_irq(IRQ_ADC);
+	disable_irq(IRQ_PENDN);
+
+	if (timer_pending(&touch_timer) || ts_pressed)
+		goto out;
+
+	s3c_adc_save_SFR_on_ADC();
+
+	writel(0x58, ts_base+S3C_ADCTSC);
+
+	writel(readl(ts_base+S3C_ADCCON)|S3C_ADCCON_SELMUX(s3c_adc_port), ts_base+S3C_ADCCON);
+	udelay(10);
+
+	writel(readl(ts_base+S3C_ADCCON)|S3C_ADCCON_ENABLE_START, ts_base+S3C_ADCCON);
+
+	do {
+		data0 = readl(ts_base+S3C_ADCCON);
+	} while(!(data0 & S3C_ADCCON_ECFLG));
+
+	data1 = readl(ts_base+S3C_ADCDAT0);
+
+	s3c_adc_restore_SFR_on_ADC();
+
+	adc_return = data1 & S3C_ADCDAT0_XPDATA_MASK_12BIT;
+	__raw_writel(0x0, ts_base+S3C_ADCCLRWK);
+	__raw_writel(0x0, ts_base+S3C_ADCCLRINT);
+out:
+	enable_irq(IRQ_PENDN);
+	enable_irq(IRQ_ADC);
+
+	return adc_return;
+}
+EXPORT_SYMBOL(s3c_adc_value);
+#endif
 static irqreturn_t stylus_updown(int irqno, void *param)
 {
 	unsigned long data0;
@@ -252,6 +316,9 @@ static irqreturn_t stylus_action(int irqno, void *param)
 {
 	unsigned long data0;
 	unsigned long data1;
+#if 1 /* TERRY(2010-0201): For reading battery level from ADC */
+	ts_pressed = 1;
+#endif
 
 	data0 = readl(ts_base+S3C_ADCDAT0);
 	data1 = readl(ts_base+S3C_ADCDAT1);

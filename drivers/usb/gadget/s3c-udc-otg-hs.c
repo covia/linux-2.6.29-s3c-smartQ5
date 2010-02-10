@@ -47,6 +47,9 @@
 #include <mach/hardware.h>
 #include <linux/i2c.h>
 
+#include <plat/regs-otg.h>
+#include <linux/usb/ch9.h>
+
 #if defined (CONFIG_MACH_SMDK6410)
 
 extern void s3c_cable_check_status(int flag);
@@ -314,7 +317,8 @@ static int udc_enable(struct s3c_udc *dev)
 	
 	// 1. Initializes OTG Phy.
 	writel(0x0, S3C_USBOTG_PHYPWR);
-	writel(0x20, S3C_USBOTG_PHYCLK);
+//	writel(0x20, S3C_USBOTG_PHYCLK);
+	writel(0x02, S3C_USBOTG_PHYCLK); /* 2010-0208, modified by CVKK(JC) */
 	writel(0x1, S3C_USBOTG_RSTCON);
 	udelay(50);
 	writel(0x0, S3C_USBOTG_RSTCON);
@@ -332,6 +336,7 @@ static int udc_enable(struct s3c_udc *dev)
 }
 //---------------------------------------------------------------------------------------
 
+extern void otg_phy_init(u32);
 /*
  * 	udc_disable - disable USB device controller
  */
@@ -344,8 +349,8 @@ static void udc_disable(struct s3c_udc *dev)
 	dev->ep0state = WAIT_FOR_SETUP;
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
 	dev->usb_address = 0;
-	writel(readl(S3C_USBOTG_PHYPWR)|(0x7<<1), S3C_USBOTG_PHYPWR);
-
+	//writel(readl(S3C_USBOTG_PHYPWR)|(0x7<<1), S3C_USBOTG_PHYPWR);
+        otg_phy_init(0x42); /* 2010-0208, added by CVKK(JC) */
 	dev->udc_state = USB_STATE_NOTATTACHED;
 }
 //---------------------------------------------------------------------------------------

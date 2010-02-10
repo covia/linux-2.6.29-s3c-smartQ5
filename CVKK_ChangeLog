@@ -7,6 +7,24 @@
 #   The kernel source is from
 #   Samsung BSP    
 #########################################################
+2010-0210 (Jackal)
+  o Covia release version:CV_1001901-SQ-rc4
+  
+  o added battery life support for Android
+  - modified:   drivers/input/touchscreen/s3c-ts.c
+  - modified:   drivers/power/s3c6410_battery.c
+
+  o added S3C6410 USB host(OHCI 1.1) and USB OTG support
+  - modified:   arch/arm/plat-s3c64xx/include/plat/regs-clock.h
+  - modified:   arch/arm/mach-s3c6410/mach-smdk6410.c
+  - modified:   arch/arm/plat-s3c64xx/ltc3714.c    
+  - modified:   arch/arm/mach-s3c6410/smartq-gpio.c
+  - modified:   drivers/usb/gadget/Kconfig
+  - modified:   drivers/usb/gadget/s3c-udc-otg-hs.c
+  
+  o some cleanup
+  - modified:   sound/soc/s3c24xx/s3c-i2s-v2.c
+
 2010-0204 (Jackal)
   o Covia release version:CV_1001901-SQ-rc3
   
