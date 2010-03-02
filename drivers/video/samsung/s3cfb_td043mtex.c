@@ -424,6 +424,11 @@ static int __init smdk_bl_init(void)
 {
    printk("SMDK board LCD Backlight Device Driver (c) 2008 Samsung Electronics \n");
    
+   backlight_ctrl(0);
+   mdelay(100);
+   backlight_ctrl(255);
+   mdelay(100);   
+   
    platform_driver_register(&smdk_bl_driver);
    return 0;
 }

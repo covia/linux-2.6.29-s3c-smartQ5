@@ -27,10 +27,15 @@
 
 #if 1 /* 2009-0903, modified by CVKK(JC) */
 #define HOLD_KEY_TIME 1*HZ
-#define MULTI_FUN_KEY_DEF KEY_MENU
-#define MULTI_FUN_KEY_OTH KEY_SYSRQ 
+#define MULTI_FUN_KEY_DEF KEY_MENU  /* keycode: 139 */
+#define MULTI_FUN_KEY_OTH KEY_SYSRQ /* keycode:  99 */ 
 static struct timer_list cv_handle_multi_key_timer;
 static int multi_key_code = MULTI_FUN_KEY_DEF;
+
+#define MULTI_FUN_KEY_DEF_02 KEY_BACK     /* keycode: 158 */
+#define MULTI_FUN_KEY_OTH_02 KEY_LINEFEED /* keycode: 101 */
+static struct timer_list cv_handle_multi_key_02_timer;
+static int multi_key_code_02 = MULTI_FUN_KEY_DEF_02;
 #endif
 
 struct gpio_button_data {
@@ -66,6 +71,20 @@ static void gpio_keys_report_event(struct gpio_button_data *bdata)
 			}
 			multi_key_code = MULTI_FUN_KEY_DEF;
 		}
+        } else if (button->code == MULTI_FUN_KEY_DEF_02) {
+		if (state) {
+			mod_timer(&cv_handle_multi_key_02_timer, jiffies + HOLD_KEY_TIME);
+		} else {
+			if (button->code == multi_key_code_02) {
+				del_timer(&cv_handle_multi_key_02_timer);
+				input_event(input, type, button->code, 1);
+				input_sync(input);
+				mdelay(button->debounce_interval);
+				input_event(input, type, multi_key_code_02, state);
+				input_sync(input);
+			}
+			multi_key_code_02 = MULTI_FUN_KEY_DEF_02;
+		}
 	} else {
 		input_event(input, type, button->code, !!state);
 		input_sync(input);
@@ -89,6 +108,20 @@ static void cv_handle_multi_key(unsigned long _data)
 	input_sync(input);
 	mdelay(button->debounce_interval);
 	input_event(input, type, multi_key_code, 0);
+	input_sync(input);
+}
+static void cv_handle_multi_key_02(unsigned long _data)
+{
+	struct gpio_button_data *data = (struct gpio_button_data *)_data;
+	struct gpio_keys_button *button = data->button;
+	struct input_dev *input = data->input;
+	unsigned int type = button->type ?: EV_KEY;
+
+	multi_key_code_02 = MULTI_FUN_KEY_OTH_02;
+	input_event(input, type, multi_key_code_02, 1);
+	input_sync(input);
+	mdelay(button->debounce_interval);
+	input_event(input, type, multi_key_code_02, 0);
 	input_sync(input);
 }
 #endif
@@ -163,6 +196,8 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 #if 1 /* 2009-0903, added by CVKK(JC) */
 		if (button->code == MULTI_FUN_KEY_DEF)
 			setup_timer(&cv_handle_multi_key_timer, cv_handle_multi_key, (unsigned long)bdata);
+		if (button->code == MULTI_FUN_KEY_DEF_02)
+			setup_timer(&cv_handle_multi_key_02_timer, cv_handle_multi_key_02, (unsigned long)bdata);
 #endif	   
 
 		error = gpio_request(button->gpio, button->desc ?: "gpio_keys");
@@ -210,6 +245,8 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 #if 1 /* 2009-0903 , added by CVKK(JC) */
 		if (button->code == MULTI_FUN_KEY_DEF)
 			input_set_capability(input, type, MULTI_FUN_KEY_OTH);
+		if (button->code == MULTI_FUN_KEY_DEF_02)
+			input_set_capability(input, type, MULTI_FUN_KEY_OTH_02);
 #endif	   
 	}
 

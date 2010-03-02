@@ -53,7 +53,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/earlysuspend.h>
-
+#include <linux/proc_fs.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -111,36 +112,64 @@ struct early_suspend	early_suspend;
 void s3c_ts_early_suspend(struct early_suspend * h);
 void s3c_ts_late_resume(struct early_suspend * h);
 #endif	/* CONFIG_HAS_EARLYSUSPEND */
+#if defined(ANDROID_TS)
+#define PROC_TS_CALIBRATE_NAME        "calibrate"
 
+static volatile int Xa=5102,Xb=-25  ,Xc=-16337616;
+static volatile int Ya=-36 ,Yb=-7000,Yc=71956834;
+static volatile int divisor=65536;
+#endif
+
+#if defined(ANDROID_TS) /* 2009-0908, added by CVKK(JC), For touchscreen calibrate */
+static ssize_t proc_ts_calibrate_wr(struct file *file,
+				    const char *buf,
+				    size_t len,
+				    loff_t *ppos)
+{
+   int xa,xb,xc,ya,yb,yc,d;
+   int rval;
+   if (*ppos != 0) return -EIO;
+   if (len > 255) return -EIO;
+   
+   if ( (rval = sscanf(buf,"%d %d %d %d %d %d %d",&xa,&xb,&xc,&ya,&yb,&yc,&d)) == 7) {
+      Xa = xa; Xb = xb; Xc = xc;
+      Ya = ya; Yb = yb; Yc = yc;
+      divisor = d;
+   } else {
+      printk(KERN_ERR"/proc/%s: the arguments are not correct.\n",PROC_TS_CALIBRATE_NAME);   *ppos += len;
+   }
+   return len;
+}
+
+static ssize_t proc_ts_calibrate_rd(struct file *file,
+				    char __user *buf,
+				    size_t len,
+				    loff_t *ppos)
+{
+   char rval[256];
+	
+   if (*ppos != 0) return 0;
+   memset(rval, 0, sizeof(rval));
+   sprintf(rval,"%d %d %d %d %d %d %d\n",Xa,Xb,Xc,Ya,Yb,Yc,divisor);
+   if ( __copy_to_user(buf, rval, strlen(rval)) ) return -EFAULT;
+   *ppos += strlen(rval);
+   
+   return strlen(rval);
+}
+static struct file_operations cv_ts_calibrate_fops = {   
+     read : proc_ts_calibrate_rd,
+     write: proc_ts_calibrate_wr,
+};
+static struct proc_dir_entry *proc_cv_ts_calibrate;
+#endif
+   
 static void touch_timer_fire(unsigned long data)
 {
 	unsigned long data0;
 	unsigned long data1;
 	int updown;
-
 #ifdef ANDROID_TS
-	int a0,a1,a2,a3,a4,a5,a6;
 	int x,y;
-
-#ifdef CONFIG_SMDK6410_REV10
-	a0=4959;
-	a1=-7;
-	a2=-14752736;
-	a3=5;
-	a4=4142;
-	a5=-17376848;
-	a6=65536;
-#else
-// Xa=-16337616, Xb=5102 , Xc=-25, Ya=71956834, Yb=-36, Yc=-7000, divisor=65536
-	a0=5102;
-	a1=-25;
-	a2=-16337616;
-	a3=-36;
-	a4=-7000;
-	a5=71956834;
-	a6=65536;
-
-#endif
 #endif
 
 	data0 = readl(ts_base+S3C_ADCDAT0);
@@ -166,15 +195,19 @@ static void touch_timer_fire(unsigned long data)
 #ifdef ANDROID_TS
                         x=(int) ts->xp;
                         y=(int) ts->yp;
-
-                        ts->xp=(long) ((a2+(a0*x)+(a1*y))/a6);
-                        ts->yp=(long) ((a5+(a3*x)+(a4*y))/a6);
+                        ts->xp = (long)(((Xa*x)+(Xb*y)+Xc)/divisor);
+                        ts->yp = (long)(((Ya*x)+(Yb*y)+Yc)/divisor);
+		   
+//                        ts->xp=(long) ((a2+(a0*x)+(a1*y))/a6);
+//                        ts->yp=(long) ((a5+(a3*x)+(a4*y))/a6);
 //                                  printk("x=%d, y=%d\n",(int) ts->xp,(int) ts->yp);
 
                         if(ts->xp!=ts->xp_old || ts->yp!=ts->yp_old)
                         {
                                 input_report_abs(ts->dev, ABS_X, ts->xp);
                                 input_report_abs(ts->dev, ABS_Y, ts->yp);
+                                input_report_abs(ts->dev, ABS_RX, x);
+			        input_report_abs(ts->dev, ABS_RY, y);
                                 input_report_abs(ts->dev, ABS_Z, 0);
 
                                 input_report_key(ts->dev, BTN_TOUCH, 1);
@@ -477,6 +510,8 @@ static int __init s3c_ts_probe(struct platform_device *pdev)
         set_bit(0,ts->dev->absbit);
         set_bit(1,ts->dev->absbit);
         set_bit(2,ts->dev->absbit);
+        set_bit(3,ts->dev->absbit);
+        set_bit(4,ts->dev->absbit);
 
         set_bit(0,ts->dev->swbit);
 
@@ -688,12 +723,21 @@ static char banner[] __initdata = KERN_INFO "S3C Touchscreen driver, (c) 2009 Sa
 static int __init s3c_ts_init(void)
 {
 	printk(banner);
+#if defined(ANDROID_TS) /* 2009-0908, added by CVKK(JC) */
+        proc_cv_ts_calibrate = create_proc_entry(PROC_TS_CALIBRATE_NAME,
+						 S_IRWXU | S_IRWXG | S_IRWXO, // chmod: 00777
+						 NULL);
+        proc_cv_ts_calibrate->proc_fops = &cv_ts_calibrate_fops;
+#endif
 	return platform_driver_register(&s3c_ts_driver);
 }
 
 static void __exit s3c_ts_exit(void)
 {
 	platform_driver_unregister(&s3c_ts_driver);
+#if defined(ANDROID_TS) /* 2009-0908, added by CVKK(JC) */
+        remove_proc_entry(PROC_TS_CALIBRATE_NAME, NULL);
+#endif
 }
 
 module_init(s3c_ts_init);

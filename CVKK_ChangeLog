@@ -7,6 +7,21 @@
 #   The kernel source is from
 #   Samsung BSP    
 #########################################################
+2010-0227 (Jackal) Release to Japan
+  o Covia release version:CV_1001901-SQ-rc5
+  
+  o fixed print out warning message
+  - modified:   arch/arm/plat-s3c64xx/setup-fb.c
+  
+  o added 'ADJUST_VOLUME' button support
+  - modified:   drivers/input/keyboard/gpio_keys.c
+  
+  o added calibration feature for Touch Screen.
+  - modified:   drivers/input/touchscreen/s3c-ts.c
+  
+  o fixed that the boot splash screen sometimes disappears issue
+  - modified:   drivers/video/samsung/s3cfb_td043mtex.c
+
 2010-0210 (Jackal)
   o Covia release version:CV_1001901-SQ-rc4
   
