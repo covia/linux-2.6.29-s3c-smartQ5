@@ -308,6 +308,16 @@ struct clk s3c24xx_uclk = {
 	.id		= -1,
 };
 
+#if 23
+struct clk clk_s = { 
+        .name           = "sclk",
+        .id             = -1, 
+        .rate           = 0,
+        .parent         = NULL,
+        .ctrlbit        = 0,
+};
+#endif
+
 /* initialise the clock system */
 
 int s3c_register_clock(struct clk *clk)

@@ -32,6 +32,10 @@
 
 extern int  s3c6410_changedivider(unsigned int value, unsigned int vaddr);
 
+#if 23
+static int s3c6410_clkcon_enable_others(struct clk *clk, int enable);
+static int s3c6410_clkcon_enable_s(struct clk *clk, int enable);
+#endif
 /* definition for cpu freq */
 
 #define ARM_PLL_CON 	S3C_APLL_CON
@@ -602,7 +606,203 @@ static struct clk init_clocks[] = {
 		.ctrlbit	= S3C_CLKCON_SCLK_CAM,
 		.set_rate	= s3c64xx_setrate_sclk_cam,
 	},
+	/* register to use HS-MMC clock */
+	{ .name    	= "sclk_48m",
+	  .id	   	= -1,
+	  .parent  	= &clk_48m,
+	  .enable  	= s3c6410_clkcon_enable_others,
+	  .ctrlbit 	= 1<<16,	/* USB SIG Mask */
+	  .usage   	= 0,
+	  .rate    	= 48*1000*1000,
+	},
+	{ .name    	= "sclk_48m_mmc0",
+	  .id	   	= -1,
+	  .parent  	= &clk_s,
+	  .enable  	= s3c6410_clkcon_enable_s,
+	  .ctrlbit 	= S3C_CLKCON_SCLK_MMC0_48,
+	  .usage   	= 0,
+	  .rate    	= 48*1000*1000,
+	},
+	{ .name    	= "sclk_48m_mmc1",
+	  .id	   	= -1,
+	  .parent  	= &clk_s,
+	  .enable  	= s3c6410_clkcon_enable_s,
+	  .ctrlbit 	= S3C_CLKCON_SCLK_MMC1_48,
+	  .usage   	= 0,
+	  .rate    	= 48*1000*1000,
+	},
+	{ .name    	= "sclk_48m_mmc2",
+	  .id	   	= -1,
+	  .parent  	= &clk_s,
+	  .enable  	= s3c6410_clkcon_enable_s,
+	  .ctrlbit 	= S3C_CLKCON_SCLK_MMC2_48,
+	  .usage   	= 0,
+	  .rate    	= 48*1000*1000,
+	},
 };
+
+#if 23
+static unsigned long s3c6410_mpll_get_clk(struct clk *clk)
+{
+	unsigned long mpll_con;
+	unsigned long m = 0;
+	unsigned long p = 0;
+	unsigned long s = 0;
+	unsigned long ret;
+
+	mpll_con = readl(S3C_MPLL_CON);
+
+	m = (mpll_con >> 16) & 0x3ff;
+	p = (mpll_con >> 8) & 0x3f;
+	s = mpll_con & 0x3;
+
+	ret = (m * (12000000 / (p * (1 << s))));
+
+	return (((readl(S3C_CLK_DIV0) >> 4 ) & 0x1) ? (ret / 2) : ret);
+}
+
+static int s3c6410_clk_mpll_dout_enable(struct clk *clk, int enable)
+{
+	writel(readl(S3C_CLK_SRC) | (0x1 << 1), S3C_CLK_SRC);
+
+	return 0;
+}
+static int s3c6410_setrate_clk_mpll_dout(struct clk *clk, unsigned long rate)
+{
+	/* To get 266Mhz */
+	writel((readl(S3C_CLK_DIV0) & ~(0x1 << 4)) | (rate << 4) , S3C_CLK_DIV0);
+
+	return 0;
+}
+static unsigned long s3c6410_getrate_clk_mpll_dout(struct clk *clk)
+{
+	s3c6410_setrate_clk_mpll_dout(clk, 1);
+
+	return s3c6410_mpll_get_clk(clk);
+}
+static struct clk clk_mpll_dout = {
+	  .name    = "DOUTmpll",
+	  .id	   = -1,
+	  .parent  = &clk_mpll,
+	  .enable  = s3c6410_clk_mpll_dout_enable,
+	  .ctrlbit = 0,
+	  .set_rate = s3c6410_setrate_clk_mpll_dout,
+	  .get_rate = s3c6410_getrate_clk_mpll_dout,
+};
+/* For  HS-MMC controller */
+static unsigned long s3c6410_getrate_DOUTmpll_hsmmc_clk(struct clk *clk)
+{
+	unsigned long parent_rate = clk_get_rate(clk->parent);
+	unsigned long div = readl(S3C_CLK_DIV1);
+#if 23
+	div &= ~S3C6400_CLKDIV1_MMC0_MASK;
+#else
+	div &= ~S3C_CLKDIV1_HSMMCDIV0_MASK;
+#endif
+	/* MMC_RATIO = 2+1 */
+	div |= 0x2;
+
+	writel(div, S3C_CLK_DIV1);
+
+	return parent_rate / (0x2 + 1);
+}
+
+static unsigned long s3c6410_getrate_DOUTmpll_hsmmc1_clk(struct clk *clk)
+{
+	unsigned long parent_rate = clk_get_rate(clk->parent);
+	unsigned long div = readl(S3C_CLK_DIV1);
+	div &= ~S3C6400_CLKDIV1_MMC1_MASK;
+
+	/* MMC1_RATIO = 2+1 */
+#if 23
+	div |= (0x2<<S3C6400_CLKDIV1_MMC1_SHIFT);
+#else
+	div |= (0x2<<S3C_CLKDIV1_HSMMCDIV1_SHIFT);
+#endif
+	writel(div, S3C_CLK_DIV1);
+
+	return parent_rate / (0x2 + 1);
+}
+
+static unsigned long s3c6410_getrate_DOUTmpll_hsmmc2_clk(struct clk *clk)
+{
+	unsigned long parent_rate = clk_get_rate(clk->parent);
+	unsigned long div = readl(S3C_CLK_DIV1);
+	div &= ~S3C6400_CLKDIV1_MMC2_MASK;
+
+	/* MMC1_RATIO = 2+1 */
+	div |= (0x2<<S3C6400_CLKDIV1_MMC2_SHIFT);
+
+	writel(div, S3C_CLK_DIV1);
+
+	return parent_rate / (0x2 + 1);
+}
+
+
+static int s3c6410_clkcon_enable_s(struct clk *clk, int enable)
+{
+	unsigned int clocks = clk->ctrlbit;
+	unsigned long clkcon;
+
+	clkcon = __raw_readl(S3C_SCLK_GATE);
+
+	if (enable)
+		clkcon |= clocks;
+	else
+		clkcon &= ~clocks;
+
+	__raw_writel(clkcon, S3C_SCLK_GATE);
+
+	return 0;
+}
+static struct clk clk_hsmmc_DOUTmpll_mmc0 = {
+	.name    	= "sclk_DOUTmpll_mmc0",
+	.id	   	= -1,
+	.parent  	= &clk_mpll_dout,
+	.enable  	= s3c6410_clkcon_enable_s,
+	.ctrlbit 	= S3C_CLKCON_SCLK_MMC0,
+	.get_rate 	= s3c6410_getrate_DOUTmpll_hsmmc_clk,
+	.usage   	= 0,
+};
+
+static struct clk clk_hsmmc_DOUTmpll_mmc1 = {
+	.name    	= "sclk_DOUTmpll_mmc1",
+	.id	   	= -1,
+	.parent  	= &clk_mpll_dout,
+	.enable  	= s3c6410_clkcon_enable_s,
+	.ctrlbit 	= S3C_CLKCON_SCLK_MMC1,
+	.get_rate 	= s3c6410_getrate_DOUTmpll_hsmmc1_clk,
+	.usage   	= 0,
+};
+
+static struct clk clk_hsmmc_DOUTmpll_mmc2 = {
+	.name    	= "sclk_DOUTmpll_mmc2",
+	.id	   	= -1,
+	.parent  	= &clk_mpll_dout,
+	.enable  	= s3c6410_clkcon_enable_s,
+	.ctrlbit 	= S3C_CLKCON_SCLK_MMC2,
+	.get_rate 	= s3c6410_getrate_DOUTmpll_hsmmc2_clk,
+	.usage   	= 0,
+};
+
+static int s3c6410_clkcon_enable_others(struct clk *clk, int enable)
+{
+	unsigned int clocks = clk->ctrlbit;
+	unsigned long clkcon;
+
+	clkcon = __raw_readl(S3C_OTHERS);
+
+	if (enable)
+		clkcon |= clocks;
+	else
+		clkcon &= ~clocks;
+
+	__raw_writel(clkcon, S3C_OTHERS);
+
+	return 0;
+}
+
+#endif
 
 static struct clk *clks[] __initdata = {
 	&clk_ext,
@@ -610,6 +810,11 @@ static struct clk *clks[] __initdata = {
 	&clk_27m,
 	&clk_48m,
 	&clk_cpu,
+#if 23
+	&clk_hsmmc_DOUTmpll_mmc0,
+	&clk_hsmmc_DOUTmpll_mmc1,
+	&clk_hsmmc_DOUTmpll_mmc2,
+#endif
 };
 
 void __init s3c64xx_register_clocks(void)

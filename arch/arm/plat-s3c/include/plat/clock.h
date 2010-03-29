@@ -37,6 +37,9 @@ extern struct clk s3c24xx_clkout1;
 extern struct clk s3c24xx_uclk;
 
 extern struct clk clk_usb_bus;
+#if 23
+extern struct clk clk_s;
+#endif
 
 /* core clock support */
 

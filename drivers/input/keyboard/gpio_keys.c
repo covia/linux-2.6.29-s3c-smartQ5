@@ -37,6 +37,12 @@ static int multi_key_code = MULTI_FUN_KEY_DEF;
 static struct timer_list cv_handle_multi_key_02_timer;
 static int multi_key_code_02 = MULTI_FUN_KEY_DEF_02;
 #endif
+#if 23
+#define MULTI_FUN_KEY_PLUS    158    // SmartQ '+' key 
+#define MULTI_FUN_KEY_PLUS2   101      
+static struct timer_list cv_handle_multi_key_plus_timer;
+static int multi_key_plus_code = MULTI_FUN_KEY_PLUS;
+#endif
 
 struct gpio_button_data {
 	struct gpio_keys_button *button;
@@ -85,7 +91,23 @@ static void gpio_keys_report_event(struct gpio_button_data *bdata)
 			}
 			multi_key_code_02 = MULTI_FUN_KEY_DEF_02;
 		}
-	} else {
+	} 
+	else if (button->code == MULTI_FUN_KEY_PLUS) {
+	   if (state) {
+	      mod_timer(&cv_handle_multi_key_plus_timer, jiffies + HOLD_KEY_TIME);
+	   } else {
+	      if (button->code == multi_key_plus_code) {
+		 del_timer(&cv_handle_multi_key_plus_timer);
+		 input_event(input, type, button->code, 1);
+		 input_sync(input);
+		 mdelay(button->debounce_interval);
+		 input_event(input, type, multi_key_plus_code, state);
+		 input_sync(input);
+	      }
+	      multi_key_plus_code = MULTI_FUN_KEY_PLUS;
+	   }
+	} 
+	else {
 		input_event(input, type, button->code, !!state);
 		input_sync(input);
 	}
@@ -123,6 +145,20 @@ static void cv_handle_multi_key_02(unsigned long _data)
 	mdelay(button->debounce_interval);
 	input_event(input, type, multi_key_code_02, 0);
 	input_sync(input);
+}
+static void cv_handle_multi_key_plus(unsigned long _data)
+{
+   struct gpio_button_data *data = (struct gpio_button_data *)_data;
+   struct gpio_keys_button *button = data->button;
+   struct input_dev *input = data->input;
+   unsigned int type = button->type ?: EV_KEY;
+
+   multi_key_plus_code = MULTI_FUN_KEY_PLUS2;
+   input_event(input, type, multi_key_plus_code, 1);
+   input_sync(input);
+   mdelay(button->debounce_interval);
+   input_event(input, type, multi_key_plus_code, 0);
+   input_sync(input);
 }
 #endif
 
@@ -198,6 +234,9 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 			setup_timer(&cv_handle_multi_key_timer, cv_handle_multi_key, (unsigned long)bdata);
 		if (button->code == MULTI_FUN_KEY_DEF_02)
 			setup_timer(&cv_handle_multi_key_02_timer, cv_handle_multi_key_02, (unsigned long)bdata);
+	        if (button->code == MULTI_FUN_KEY_PLUS)
+	            setup_timer(&cv_handle_multi_key_plus_timer, cv_handle_multi_key_plus, 
+			                  (unsigned long)bdata);
 #endif	   
 
 		error = gpio_request(button->gpio, button->desc ?: "gpio_keys");
@@ -247,6 +286,8 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 			input_set_capability(input, type, MULTI_FUN_KEY_OTH);
 		if (button->code == MULTI_FUN_KEY_DEF_02)
 			input_set_capability(input, type, MULTI_FUN_KEY_OTH_02);
+	        if (button->code == MULTI_FUN_KEY_PLUS)
+	                input_set_capability(input, type, MULTI_FUN_KEY_PLUS2);
 #endif	   
 	}
 

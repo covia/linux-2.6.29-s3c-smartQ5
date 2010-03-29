@@ -548,6 +548,172 @@ struct platform_device s3c_device_camif = {
 
 EXPORT_SYMBOL(s3c_device_camif);
 
+#if 23
+struct platform_device s3c_gpio = {
+        .name           = "hhtech_gpio",
+        .id             = -1,
+        .num_resources  = 0, 
+};
+EXPORT_SYMBOL(s3c_gpio);
+
+/* HS-MMC controller */
+extern struct s3c_hsmmc_cfg s3c_hsmmc0_platform;
+extern struct s3c_hsmmc_cfg s3c_hsmmc1_platform;
+extern struct s3c_hsmmc_cfg s3c_hsmmc2_platform;
+
+#if 23
+static struct resource s3c_hsmmc0_resource[] = { 
+        [0] = { 
+                .start = S3C_PA_HSMMC0,
+                .end   = S3C_PA_HSMMC0 + S3C_SZ_HSMMC - 1,
+                .flags = IORESOURCE_MEM,
+        },
+        [1] = { 
+                .start = IRQ_HSMMC0,
+                .end   = IRQ_HSMMC0,
+                .flags = IORESOURCE_IRQ,
+        },
+        [2] = { 
+                .start = IRQ_EINT(6),
+                .end   = IRQ_EINT(6),
+                .flags = IORESOURCE_IRQ,
+        }
+
+};
+#else
+static struct resource s3c_hsmmc0_resource[] = {
+	[0] = {
+/*mj23		.start = S3C_PA_HSMMC,	 */
+		.start = S3C64XX_PA_HSMMC0,	
+		.end   = S3C64XX_PA_HSMMC0 + (S3C_SZ_HSMMC - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_HSMMC0,
+		.end   = IRQ_HSMMC0,
+		.flags = IORESOURCE_IRQ,
+	},
+	#if 0
+	/* To detect a card inserted, use an external interrupt */
+	[2] = {
+		.start = IRQ_EINT13,
+		.end   = IRQ_EINT13,
+		.flags = IORESOURCE_IRQ,
+	}
+	#endif
+};
+#endif
+
+#if 23
+static struct resource s3c_hsmmc1_resource[] = { 
+        [0] = { 
+                .start = S3C_PA_HSMMC1,
+                .end   = S3C_PA_HSMMC1 + S3C_SZ_HSMMC - 1,
+                .flags = IORESOURCE_MEM,
+        },
+        [1] = { 
+                .start = IRQ_HSMMC1,
+                .end   = IRQ_HSMMC1,
+                .flags = IORESOURCE_IRQ,
+        }
+};
+#else
+static struct resource s3c_hsmmc1_resource[] = {
+	[0] = {
+/*		
+		.start = S3C_PA_HSMMC+0x100000,
+		.end   = S3C_PA_HSMMC+0x100000+S3C_SZ_HSMMC-1,
+ */		
+		.start = S3C64XX_PA_HSMMC1,
+		.end   = S3C64XX_PA_HSMMC1 + (S3C_SZ_HSMMC - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_HSMMC1,
+		.end   = IRQ_HSMMC1,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+#endif
+
+static struct resource s3c_hsmmc2_resource[] = {
+	[0] = {
+/*		
+		.start = S3C_PA_HSMMC+0x200000,
+		.end   = S3C_PA_HSMMC+0x200000+S3C_SZ_HSMMC-1,
+ */		
+		.start = S3C_PA_HSMMC2,
+		.end   = S3C_PA_HSMMC2 + (S3C_SZ_HSMMC - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_HSMMC2,
+		.end   = IRQ_HSMMC2,
+		.flags = IORESOURCE_IRQ,
+	},
+#if 0
+	[2] = {
+		.start = IRQ_EINT15,
+		.end   = IRQ_EINT15,
+		.flags = IORESOURCE_IRQ,
+	}
+#endif
+};
+
+static u64 s3c_device_hsmmc_dmamask = 0xffffffffUL;
+
+struct platform_device s3c_device_hsmmc0 = {
+	.name		  = "s3c-hsmmc",
+	.id		  = 0,
+	.num_resources	  = ARRAY_SIZE(s3c_hsmmc0_resource),
+	.resource	  = s3c_hsmmc0_resource,
+	.dev		= {
+#if 23
+                .dma_mask               = &s3c_device_hsmmc_dmamask,
+                .coherent_dma_mask      = 0xffffffffUL,
+#endif
+		.platform_data = &s3c_hsmmc0_platform,
+	}
+};
+
+static u64 s3c_device_hsmmc1_dmamask = 0xffffffffUL;
+
+struct platform_device s3c_device_hsmmc1 = {
+	.name		  = "s3c-hsmmc",
+	.id		  = 1,
+	.num_resources	  = ARRAY_SIZE(s3c_hsmmc1_resource),
+	.resource	  = s3c_hsmmc1_resource,
+	.dev		= {
+#if 23
+                .dma_mask               = &s3c_device_hsmmc1_dmamask,
+                .coherent_dma_mask      = 0xffffffffUL,
+#endif
+		.platform_data = &s3c_hsmmc1_platform,
+	}
+};
+
+static u64 s3c_device_hsmmc2_dmamask = 0xffffffffUL;
+
+struct platform_device s3c_device_hsmmc2 = {
+	.name		  = "s3c-hsmmc",
+	.id		  = 2,
+	.num_resources	  = ARRAY_SIZE(s3c_hsmmc2_resource),
+	.resource	  = s3c_hsmmc2_resource,
+	.dev		= {
+#if 23
+		.dma_mask               = &s3c_device_hsmmc2_dmamask,
+		.coherent_dma_mask      = 0xffffffffUL,
+#endif
+		.platform_data = &s3c_hsmmc2_platform,
+	}
+};
+
+EXPORT_SYMBOL(s3c_device_hsmmc0);
+EXPORT_SYMBOL(s3c_device_hsmmc1);
+EXPORT_SYMBOL(s3c_device_hsmmc2);
+
+#endif
+
 static struct android_pmem_platform_data pmem_pdata = {
 	.name		= "pmem",
 	.no_allocator	= 1,

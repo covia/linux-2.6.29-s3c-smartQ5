@@ -412,9 +412,11 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_fimc0,
 	&s3c_device_fimc1,
 #endif
+/*	
 #if CONFIG_VIDEO_CAM 
 	&s3c_device_camif,
 #endif
+ */
 #ifdef CONFIG_VIDEO_MFC
 	&s3c_device_mfc,
 #endif
@@ -540,6 +542,165 @@ static void smdk6410_set_qos(void)
 	writel(0x8ff, S3C_VA_SYS + 0x838);
 }
 
+#if 23
+#include <plat/regs-gpio2.h>
+#include <plat/gpio-cfg.h>
+#include <plat/hsmmc.h>
+#include <plat/map.h>
+#include <linux/mmc/card.h>
+
+#define S3C_VA_GPIO     S3C_ADDR(0x00600000)    /* GPIO */
+#define S3C24XX_VA_GPIO         S3C_VA_GPIO
+
+/* For host controller's capabilities */
+#define HOST_CAPS (MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED)
+
+struct s3c_hsmmc_cfg s3c_hsmmc0_platform = {
+	.hwport = 0,
+	.enabled = 1,
+	.host_caps = HOST_CAPS,
+	.bus_width = 4,
+	.highspeed = 0,  /* High speed for mmc channel 0, SD clock up to 50M*/
+	.max_clock = 50 * 1000 * 1000,
+
+	/* ctrl for mmc */
+	.fd_ctrl[MMC_TYPE_MMC] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for mmc */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	/* ctrl for sd */
+	.fd_ctrl[MMC_TYPE_SD] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for sd */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	.fd_ctrl[MMC_TYPE_SDIO] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for sdio */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	.clocks[0] = {
+#if 0
+		.name = "mmc_bus",
+#else
+		.name = "sclk_DOUTmpll_mmc0",
+#endif
+		.src = 0x2,
+	},
+};
+
+struct s3c_hsmmc_cfg s3c_hsmmc1_platform = {
+	.hwport = 1,
+	.enabled = 1,
+	.host_caps = HOST_CAPS,
+	.bus_width = 4,
+	//.host_caps = HOST_CAPS | MMC_CAP_8_BIT_DATA,
+	//.bus_width = 8,
+
+	.highspeed = 0,
+	.max_clock = 25 * 1000 * 1000,
+
+	/* ctrl for mmc */
+	.fd_ctrl[MMC_TYPE_MMC] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for mmc */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	/* ctrl for sd */
+	.fd_ctrl[MMC_TYPE_SD] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for sd */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	.fd_ctrl[MMC_TYPE_SDIO] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for sdio */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	.clocks[0] = {
+#if 0
+		.name = "mmc_bus",
+#else
+		.name = "sclk_DOUTmpll_mmc1",
+#endif
+		.src = 0x2,
+	},
+};
+
+struct s3c_hsmmc_cfg s3c_hsmmc2_platform = {
+	.hwport = 2,
+	.enabled = 1,
+	.host_caps = HOST_CAPS | MMC_CAP_SDIO_IRQ,
+	.bus_width = 4,
+	.highspeed = 0,
+	.max_clock = 25 * 1000 * 1000,
+
+	/* ctrl for mmc */
+	.fd_ctrl[MMC_TYPE_MMC] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for mmc */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	/* ctrl for sd */
+	.fd_ctrl[MMC_TYPE_SD] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for sd */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	.fd_ctrl[MMC_TYPE_SDIO] = {
+		.ctrl2 = 0xC0004100,			/* ctrl2 for sdio */
+		.ctrl3[SPEED_NORMAL] = 0x80808080,	/* ctrl3 for low speed */
+		.ctrl3[SPEED_HIGH]   = 0x00008080,	/* ctrl3 for high speed */
+		.ctrl4 = 0x3,
+	},
+
+	.clocks[0] = {
+#if 0
+		.name = "mmc_bus",
+#else
+		.name = "sclk_DOUTmpll_mmc2",
+#endif
+		.src = 0x2,
+	},
+};
+
+
+static void smdk6410_hsmmc_init (void)
+{
+	/* hsmmc data strength */
+	writel(readl(S3C_SPCON) | (0x3 << 26) | (0x3 << 18), S3C_SPCON);
+
+	/* jsgood: hsmmc0/1 card detect pin should be high before setup gpio. (GPG6 to Input) */
+	writel(readl(S3C_GPGCON) & 0xf0ffffff, S3C_GPGCON);
+
+#if 0
+	/* GPIO N 13 (external interrupt) : Chip detect */
+	gpio_set_pin(S3C_GPN13, S3C_GPN13_EXTINT13);	/* GPN13 to EINT13 */
+	gpio_pullup(S3C_GPN13, 0x2);	  	/* Pull-up Enable */
+#endif
+
+	/* jsgood: MUXmmc# to DOUTmpll for MPLL Clock Source */
+	writel((readl(S3C_CLK_SRC) & ~(0x3f << 18)) | (0x15 << 18), S3C_CLK_SRC);
+}
+#endif
+
 static void __init smdk6410_machine_init(void)
 {
 #if 0 /* 2010-0120, commented by CVKK(JC) */   
@@ -569,7 +730,9 @@ static void __init smdk6410_machine_init(void)
 	s3c6410_add_mem_devices (&pmem_setting);
 
 	s3c6410_pm_init();
-
+#if 23
+	smdk6410_hsmmc_init();
+#endif
 	smdk6410_set_qos();
 }
 

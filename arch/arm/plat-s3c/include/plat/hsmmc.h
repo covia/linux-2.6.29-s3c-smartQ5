@@ -31,9 +31,14 @@ struct s3c_hsmmc_cfg {
 	void *base;		/* base address of host */
 	
 	u8 highspeed;		/* ENHIGHSPD bit configuration */
-		
+#if 23		
+	u32 max_clock;          /* MAX clock for this port */
+	/* feedback delay control configuration (0: mmc, 1: sd, 2:sdio) */
+	struct s3c_hsmmc_fd_cfg fd_ctrl[3];
+#else
 	/* feedback delay control configuration (0: mmc, 1: sd) */
 	struct s3c_hsmmc_fd_cfg fd_ctrl[2];
+#endif
 
 	/* clock source control */	
 	struct s3c_hsmmc_clk_cfg clocks[NUM_OF_HSMMC_CLKSOURCES];
