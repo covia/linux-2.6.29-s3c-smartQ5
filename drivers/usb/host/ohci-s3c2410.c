@@ -25,6 +25,14 @@
 #include <mach/hardware.h>
 #include <mach/usb-control.h>
 
+#if 1 /* TERRY (2010-0311): PM support moved from 2.6.24 */
+#define CVKK_SMARTQ_PM
+#endif
+
+#ifdef CVKK_SMARTQ_PM
+#include <linux/vmalloc.h>
+#endif /* CVKK_SMARTQ_PM */
+
 #define valid_port(idx) ((idx) == 1 || (idx) == 2)
 
 extern void usb_host_clk_en(void);
@@ -36,6 +44,8 @@ static struct clk *clk;
 #if defined(CONFIG_ARCH_2410)
 static struct clk *usb_clk;
 #endif
+
+static uint32_t *saved_mem;    // added by chris(CVKK)   2009/10/18
 
 /* forward definitions */
 
@@ -506,12 +516,70 @@ static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CVKK_SMARTQ_PM
+#ifdef CONFIG_PM
+static int ohci_hcd_s3c2410_drv_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
+
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+	s3c2410_stop_hc(pdev);
+	hcd->state = HC_STATE_SUSPENDED;
+	pdev->dev.power.power_state = PMSG_SUSPEND;
+
+	saved_mem = vmalloc(sizeof(__hc32));
+	memcpy (saved_mem, &ohci->regs->control, sizeof(__hc32)); 
+
+	return 0;
+}
+
+static int ohci_hcd_s3c2410_drv_resume(struct platform_device *pdev)
+{
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
+
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+#if defined(CONFIG_PLAT_S3C64XX)
+	usb_host_clk_en();
+#endif
+
+	s3c2410_usb_set_power(pdev->dev.platform_data, 1, 1);
+	s3c2410_usb_set_power(pdev->dev.platform_data, 2, 1);
+
+	s3c2410_start_hc(pdev, hcd);
+
+	ohci_hcd_init(hcd_to_ohci(hcd));
+
+	memcpy (&ohci->regs->control, saved_mem, sizeof(__hc32)); 
+	vfree (saved_mem);
+	saved_mem = NULL;
+
+	pdev->dev.power.power_state = PMSG_ON;
+	usb_hcd_resume_root_hub(hcd);
+
+	return 0;
+}
+#else /* CONFIG_PM */
+#define ohci_hcd_s3c2410_drv_suspend NULL
+#define ohci_hcd_s3c2410_drv_resume NULL
+#endif /* CONFIG_PM */
+#endif /* CVKK_SMARTQ_PM */
+
 static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_drv_probe,
 	.remove		= ohci_hcd_s3c2410_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	/*.suspend	= ohci_hcd_s3c2410_drv_suspend, */
 	/*.resume	= ohci_hcd_s3c2410_drv_resume, */
+	.suspend	= ohci_hcd_s3c2410_drv_suspend,
+	.resume	= ohci_hcd_s3c2410_drv_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c2410-ohci",

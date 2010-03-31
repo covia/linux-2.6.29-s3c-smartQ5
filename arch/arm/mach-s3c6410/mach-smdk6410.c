@@ -938,6 +938,23 @@ EXPORT_SYMBOL(s3c_config_wakeup_gpio);
 
 void s3c_config_wakeup_source(void)
 {
+#if 1 /* TERRY(2010-0329): Set power key, GPL14/IRQ_EINT(22), as wakeup source */
+	s3c_gpio_cfgpin(S3C64XX_GPL(14), S3C64XX_GPL14_EXTINT22);
+	s3c_gpio_setpull(S3C64XX_GPL(14), S3C_GPIO_PULL_UP);
+
+	udelay(50);
+
+	/* Both edge triggered */
+	__raw_writel((__raw_readl(S3C64XX_EINT0CON1) & ~(0x7 << 12)) |
+		     (S3C64XX_EXTINT_BOTHEDGE << 12), S3C64XX_EINT0CON1);
+
+	/* Enable interrupt */
+	__raw_writel(1UL << (IRQ_EINT(22) - IRQ_EINT(0)), S3C64XX_EINT0PEND);
+	__raw_writel(__raw_readl(S3C64XX_EINT0MASK)&~(1UL << (IRQ_EINT(22) - IRQ_EINT(0))), S3C64XX_EINT0MASK);
+
+	/* Disable all other interrupt to wakeup */
+	__raw_writel((0x0fffffff&~(3<<22)), S3C_EINT_MASK);
+#else
 	/* EINT10 */
 	s3c_gpio_cfgpin(S3C64XX_GPN(10), S3C64XX_GPN10_EINT10);
 	s3c_gpio_setpull(S3C64XX_GPN(10), S3C_GPIO_PULL_UP);
@@ -951,6 +968,7 @@ void s3c_config_wakeup_source(void)
 	__raw_writel(__raw_readl(S3C64XX_EINT0MASK)&~(1UL << (IRQ_EINT(10) - IRQ_EINT(0))), S3C64XX_EINT0MASK);
 
 	__raw_writel((0x0fffffff&~(3<<9)), S3C_EINT_MASK);
+#endif
 
 	/* Alarm Wakeup Enable */
 	__raw_writel((__raw_readl(S3C_PWR_CFG) & ~(0x1 << 10)), S3C_PWR_CFG);

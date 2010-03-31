@@ -23,7 +23,9 @@
 #include <linux/platform_device.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
+#if 0 /* TERRY(2010-0329): Remove to make suspend work */
 #include <linux/irq.h>
+#endif
 #include <linux/wakelock.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
@@ -35,10 +37,15 @@
   
 #include "s3c6410_battery.h"
 
-static struct wake_lock vbus_wake_lock;
+//static struct wake_lock vbus_wake_lock;
 
 /* Prototypes */
+#if 0 /* TERRY(2010-0329): Unused */
 extern int s3c_adc_get_adc_data(int channel);
+#endif
+#if 1 /* TERRY(2010-0329): LED control */
+extern int smartq_gpio_led_ctl(int led_state);
+#endif
 
 static ssize_t s3c_bat_show_property(struct device *dev,
                                       struct device_attribute *attr,
@@ -146,42 +153,6 @@ static int get_dc_status_gpio(void)
 static int get_charge_status_gpio(void)
 {
    return (gpio_get_value(S3C64XX_GPK(4)) << 1) + gpio_get_value(S3C64XX_GPK(5));
-}
-
-/* Set LED color by GPIO
- * value:
- *   0 - OFF
- *   1 - RED
- *   2 - GREEN
- *   3 - ORANGE
- */
-static int set_led_gpio(int value)
-{
-   /* Request the lock */
-   if (gpio_request(S3C64XX_GPN(8), "led_red") < 0) {
-      dev_dbg(dev, "%s : Cannot request S3C64XX_GPN(8)\n", __func__);
-      return -1;
-   }
-   
-   if (gpio_request(S3C64XX_GPN(9), "led_green") < 0) {
-      dev_dbg(dev, "%s : Cannot request S3C64XX_GPN(9)\n", __func__);
-      gpio_free(S3C64XX_GPN(8));
-      return -1;
-   }
-   
-   /* Initialize */
-   gpio_direction_output(S3C64XX_GPN(8), 0);
-   gpio_direction_output(S3C64XX_GPN(9), 0);
-   
-   /* Set value */
-   if (value & 1) gpio_set_value(S3C64XX_GPN(8), 1);
-   if (value & 2) gpio_set_value(S3C64XX_GPN(9), 1);
-   
-   /* Unlock GPIO resource */
-   gpio_free(S3C64XX_GPN(8));
-   gpio_free(S3C64XX_GPN(9));
-   
-   return 0;
 }
 
 /* Read battery level from ADC, the range is 0-1000 */
@@ -612,6 +583,7 @@ static int s3c_cable_status_update(int status)
 	}
 	source = s3c_bat_info.bat_info.charging_source;
 
+#if 0 /* TERRY(2010-0329): Remove to make suspend work */
         if (source == CHARGER_USB || source == CHARGER_AC) {
                 wake_lock(&vbus_wake_lock);
         } else {
@@ -620,7 +592,7 @@ static int s3c_cable_status_update(int status)
                  */
                 wake_lock_timeout(&vbus_wake_lock, HZ / 2);
         }
-
+#endif
         /* if the power source changes, all power supplies may change state */
         power_supply_changed(&s3c_power_supplies[CHARGER_BATTERY]);
 	/*
@@ -711,15 +683,15 @@ static void s3c_power_work(struct work_struct* work)
    
    // Update LED status
    if (led_update) {
-      int led_color = 2; // GREEN
+      int led_color = 1; // GREEN
       if (!s3c_bat_info.bat_info.batt_is_full) {
 	 if (s3c_bat_info.bat_info.charging_source == CHARGER_AC) {
-	    led_color = 1; // RED
+	    led_color = 2; // RED
 	 } else if (s3c_bat_info.bat_info.level <= WARNING_BAT_LEVEL) {
 	    led_color = 3; // ORANGE
 	 }
       }
-      if (set_led_gpio(led_color) == 0) {
+      if (smartq_gpio_led_ctl(led_color) == 0) {
 	 led_update = 0;
       }
    }
@@ -735,12 +707,21 @@ static int s3c_bat_suspend(struct platform_device *pdev,
 {
 	dev_info(dev, "%s\n", __func__);
 
+#if 1 /* TERRY(2010-0329) */
+	force_update = 0;
+#endif
+
 	return 0;
 }
 
 static int s3c_bat_resume(struct platform_device *pdev)
 {
 	dev_info(dev, "%s\n", __func__);
+
+#if 1 /* TERRY(2010-0329): Force update battery level and LED */
+	force_update = 1;
+	led_update = 1;
+#endif
 
 	return 0;
 }
@@ -855,7 +836,7 @@ static int __init s3c_bat_init(void)
 	pr_info("%s\n", __func__);
 	s3c_bat_init_hw();
 
-	wake_lock_init(&vbus_wake_lock, WAKE_LOCK_SUSPEND, "vbus_present");
+//	wake_lock_init(&vbus_wake_lock, WAKE_LOCK_SUSPEND, "vbus_present");
 
 	return platform_driver_register(&s3c_bat_driver);
 }

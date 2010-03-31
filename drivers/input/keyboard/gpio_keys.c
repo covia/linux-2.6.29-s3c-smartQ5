@@ -25,6 +25,15 @@
 
 #include <asm/gpio.h>
 
+/* TERRY(2010-0310): SIMULATE_KEY_ON_RESUME
+ *   When the PWR key(scancode: 116) wakes up the device, the key event is dropped
+ *   and cannot be passed to userspace.  As a result, Android WindowManager or
+ *   KeyGuard will not get notified to wake themselves by only one keypress.  We
+ *   simulate the key event on resume to fix this issue.  This implementation is
+ *   moved from 2.6.24, which is written by Christine, CVKK.
+ */
+#define SIMULATE_KEY_ON_RESUME
+
 #if 1 /* 2009-0903, modified by CVKK(JC) */
 #define HOLD_KEY_TIME 1*HZ
 #define MULTI_FUN_KEY_DEF KEY_MENU  /* keycode: 139 */
@@ -42,6 +51,10 @@ static int multi_key_code_02 = MULTI_FUN_KEY_DEF_02;
 #define MULTI_FUN_KEY_PLUS2   101      
 static struct timer_list cv_handle_multi_key_plus_timer;
 static int multi_key_plus_code = MULTI_FUN_KEY_PLUS;
+#endif
+
+#ifdef SIMULATE_KEY_ON_RESUME
+static int resumed = 0;
 #endif
 
 struct gpio_button_data {
@@ -165,7 +178,19 @@ static void cv_handle_multi_key_plus(unsigned long _data)
 static void gpio_check_button(unsigned long _data)
 {
 	struct gpio_button_data *data = (struct gpio_button_data *)_data;
+#ifdef SIMULATE_KEY_ON_RESUME
+	if (resumed) {
+		struct gpio_keys_button *button = data->button;
+		unsigned long now_time = jiffies;
 
+		resumed = 0;
+		button->active_low = 0;
+		gpio_keys_report_event(data);
+		button->active_low = 1;
+		/* TERRY(2010-0317): Try to increase the time if no effect(org 5) */
+		while (time_before(jiffies, now_time + msecs_to_jiffies(50)));
+	}
+#endif
 	gpio_keys_report_event(data);
 }
 
@@ -364,6 +389,12 @@ static int gpio_keys_resume(struct platform_device *pdev)
 {
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int i;
+
+#ifdef SIMULATE_KEY_ON_RESUME
+	if (pdev->id == 1) {
+		resumed = 1;
+	}
+#endif
 
 	if (device_may_wakeup(&pdev->dev)) {
 		for (i = 0; i < pdata->nbuttons; i++) {

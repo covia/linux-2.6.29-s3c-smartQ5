@@ -30,11 +30,18 @@
 #include <plat/regs-timer.h>
 #include <mach/regs-irq.h>
 
+#if 1 /* TERRY(2010-0317): GPIO relative PM support */
+#include <plat/pm.h>
+#endif
+
 #define DEV_VERSION "0.1 2010-0120"
 
 #define HEADPHONE_DEBOUCE_INTERVAL 100 /* ms */
 
 static struct timer_list gpio_headp_sts_timer;
+#if 1 /* TERRY(2010-0318): WIFI power state */
+static int wifi_power_state = 0;
+#endif
 extern otg_phy_init(u32);
 
 static void gpio_headp_sts_check(unsigned long _data)
@@ -48,6 +55,82 @@ static irqreturn_t smartq_headphone_detect_isr(int irq, void *dev_id)
 	     jiffies + msecs_to_jiffies(HEADPHONE_DEBOUCE_INTERVAL));
    return IRQ_HANDLED;
 }
+
+#if 1 /* TERRY(2010-0317): GPIO relative PM support */
+/*
+ * WIFI Power control via GPIO
+ */
+static void smartq_gpio_wifi_en(int power_state)
+{
+	if (power_state) { /* Power ON */
+		if (wifi_power_state) {
+			/* Power RESET */
+			gpio_set_value(S3C64XX_GPK(1), 0);
+			mdelay(2000);
+		}
+		/* Power ON */
+		gpio_set_value(S3C64XX_GPK(1), 1);
+		/* Reset */
+		gpio_set_value(S3C64XX_GPK(2), 0);
+		mdelay(100);
+		gpio_set_value(S3C64XX_GPK(2), 1);
+		mdelay(100);
+		wifi_power_state = 1;
+	} else {
+		/* Power OFF */
+		gpio_set_value(S3C64XX_GPK(1), 0);
+		wifi_power_state = 0;
+	}
+}
+
+/*
+ * LED control via GPIO
+ * led_state:
+ *   0 - OFF
+ *   1 - GREEN
+ *   2 - RED
+ *   3 - ORANGE
+ */
+int smartq_gpio_led_ctl(int led_state)
+{
+	int ret = 0;
+
+	if ((ret = gpio_request(S3C64XX_GPN(8), "led_red")) < 0) {
+		pr_err("%s: failed to request GPN8 for LED control.\n", __func__);
+		return ret;
+	}
+   
+	if ((ret = gpio_request(S3C64XX_GPN(9), "led_green")) < 0) {
+		pr_err("%s: failed to request GPN9 for LED control.\n", __func__);
+		gpio_free(S3C64XX_GPN(8));
+		goto out2;
+	}
+   
+	/* Initialize */
+	if ((ret = gpio_direction_output(S3C64XX_GPN(8), 0)) < 0) {
+		pr_err("%s: failed to configure output direction for GPN8, errno %d\n", 
+				__func__,ret);
+		goto out1;
+	}
+	if ((ret = gpio_direction_output(S3C64XX_GPN(9), 0)) < 0) {
+		pr_err("%s: failed to configure output direction for GPN9, errno %d\n", 
+				__func__,ret);
+		goto out1;
+	}
+
+	/* Set LED state */
+	if (!(led_state & 1)) gpio_set_value(S3C64XX_GPN(8), 1);
+	if (!(led_state & 2)) gpio_set_value(S3C64XX_GPN(9), 1);
+
+out1:
+	gpio_free(S3C64XX_GPN(8));
+out2:
+	gpio_free(S3C64XX_GPN(9));
+
+	return ret;
+}
+EXPORT_SYMBOL(smartq_gpio_led_ctl);
+#endif
 
 static int smartq_gpio_wifi_init(void)
 {
@@ -85,6 +168,10 @@ static int smartq_gpio_wifi_init(void)
    gpio_set_value(S3C64XX_GPK(2), 1);
    mdelay(100);
    
+#if 1 /* TERRY(2010-0318): Hold GPIO for later use */
+   return ret;
+#endif
+
 err1:
    gpio_free(S3C64XX_GPK(2));
    
@@ -114,7 +201,11 @@ static int smartq_gpio_audio_init(void)
    }
    
    /* Headphone status detection */   
+#if 1 /* TERRY(2010-0318): Fix compile warning */
+   setup_timer(&gpio_headp_sts_timer, gpio_headp_sts_check, 0);
+#else
    setup_timer(&gpio_headp_sts_timer, gpio_headp_sts_check, NULL);
+#endif
 
    ret = gpio_request(S3C64XX_GPL(12), "GPL");
    if (ret < 0) {
@@ -222,13 +313,20 @@ err:
    
    return ret;
 }
-static void smartq_gpio_usb_free(void)
+
+static void smartq_gpio_free(void)
 {
-   gpio_free(S3C64XX_GPL(0));
-   gpio_free(S3C64XX_GPL(1));
-   gpio_free(S3C64XX_GPL(8));
-   gpio_free(S3C64XX_GPL(11));
+        /* USB */
+        gpio_free(S3C64XX_GPL(0));
+        gpio_free(S3C64XX_GPL(1));
+        gpio_free(S3C64XX_GPL(8));
+        gpio_free(S3C64XX_GPL(11));
+
+        /* WIFI */
+        gpio_free(S3C64XX_GPK(2));
+        gpio_free(S3C64XX_GPK(1));
 }
+
 /***************************************************************
  * implement sysfs
  ***************************************************************/
@@ -298,16 +396,81 @@ static int smartq_gpio_probe(struct platform_device *pdev)
 
 static int smartq_gpio_remove(struct platform_device *dev)
 {
-   smartq_gpio_usb_free();
+   smartq_gpio_free();
    
    return 0;
 }
+
+#if 1 /* TERRY(2010-0317): GPIO relative PM support */
+static struct sleep_save_phy usb_gpio_reg[] =  {
+	SAVE_ITEM(S3C64XX_GPL(0)),    /* USB Host Power */
+	SAVE_ITEM(S3C64XX_GPL(8)),    /* External USB */
+	SAVE_ITEM(S3C64XX_GPL(1)),    /* Internal USB */
+	SAVE_ITEM(S3C64XX_GPL(11)),   /* External Over Current Detect */
+};
+
+/*
+ * USB power enable/disable via GPIO. When disabling, save GPIO state
+ * and activate them when enabling.  This function is for PM.
+ */
+static void smartq_gpio_usb_en(int power_state)
+{
+	int i;
+
+	if (power_state) {
+		/* Restore USB registers */
+		for (i = 0; i < ARRAY_SIZE(usb_gpio_reg); i++) {
+			gpio_set_value(usb_gpio_reg[i].reg, usb_gpio_reg[i].val);
+		}
+	} else {
+		/* Backup GPIO status */
+		for (i = 0; i < ARRAY_SIZE(usb_gpio_reg); i++) {
+			usb_gpio_reg[i].val = gpio_get_value(usb_gpio_reg[i].reg);
+		}
+		/* Power OFF */
+		for (i = ARRAY_SIZE(usb_gpio_reg) - 1; i >= 0; i--) {
+			gpio_set_value(usb_gpio_reg[i].reg, 0);
+		}
+	}
+}
+
+int smartq_gpio_suspend_late(struct platform_device *dev, pm_message_t state)
+{
+	/* WIFI power off */
+	smartq_gpio_wifi_en(0);
+
+	/* USB power off */
+	smartq_gpio_usb_en(0);
+
+	/* Turn LED off */
+	smartq_gpio_led_ctl(0);
+
+	return 0;
+}
+
+int smartq_gpio_resume_early(struct platform_device *dev)
+{
+	/* No need to turn LED on because battery driver will do it for us */
+
+	/* USB power on */
+	smartq_gpio_usb_en(1);
+
+	/* WIFI power on */
+	smartq_gpio_wifi_en(1);
+
+	return 0;
+}
+#endif
 
 static struct platform_driver smartq_gpio = {
      .probe   = smartq_gpio_probe,
      .remove  = smartq_gpio_remove,
      //.suspend = smartq_gpio_suspend,
      //.resume  = smartq_gpio_resume,
+#if 1 /* TERRY(2010-0317): GPIO relative PM support */
+     .suspend_late = smartq_gpio_suspend_late,
+     .resume_early  = smartq_gpio_resume_early,
+#endif
      .driver = {
 	  .name = "smartq_gpio",
 	  .owner = THIS_MODULE,

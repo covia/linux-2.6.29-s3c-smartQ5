@@ -25,3 +25,4 @@ typedef enum s3c_adc_channel {
 #define GPIO_LEVEL_LOW                  0
 #define GPIO_LEVEL_HIGH                 1
 #define GPIO_LEVEL_NONE                 2
+
