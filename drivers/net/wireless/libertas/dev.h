@@ -145,6 +145,9 @@ struct lbs_private {
 	/** Scanning */
 	struct delayed_work scan_work;
 	struct delayed_work assoc_work;
+#if 1 /* TERRY(2010-0330): Periodic stats check */
+	struct delayed_work stats_work;
+#endif
 	struct work_struct sync_channel;
 	/* remember which channel was scanned last, != 0 if currently scanning */
 	int scan_channel;

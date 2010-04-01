@@ -771,8 +771,124 @@ static int lbs_get_power(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
+#if 1 /* TERRY(2010-0330): Periodic check of signal strength */
+void lbs_stats_worker(struct work_struct *work)
+{
+	enum {
+		POOR = 30,
+		FAIR = 60,
+		GOOD = 80,
+		VERY_GOOD = 90,
+		EXCELLENT = 95,
+		PERFECT = 100
+	};
+	struct lbs_private *priv =
+		container_of(work, struct lbs_private, stats_work.work);
+	u32 rssi_qual;
+	u32 tx_qual;
+	u32 quality = 0;
+	int stats_valid = 0;
+	u8 rssi;
+	u32 tx_retries;
+	struct cmd_ds_802_11_get_log log;
+
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+	/* Cancel all other stats_works */
+	cancel_delayed_work(&priv->stats_work);
+
+	priv->wstats.status = priv->mode;
+
+	/* If we're not associated, all quality values are meaningless */
+	if ((priv->connect_status != LBS_CONNECTED) &&
+	    (priv->mesh_connect_status != LBS_CONNECTED))
+		goto out;
+
+	/* Quality by RSSI */
+	priv->wstats.qual.level =
+	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_NOAVG],
+	     priv->NF[TYPE_BEACON][TYPE_NOAVG]);
+
+	if (priv->NF[TYPE_BEACON][TYPE_NOAVG] == 0) {
+		priv->wstats.qual.noise = MRVDRV_NF_DEFAULT_SCAN_VALUE;
+	} else {
+		priv->wstats.qual.noise =
+		    CAL_NF(priv->NF[TYPE_BEACON][TYPE_NOAVG]);
+	}
+
+	lbs_deb_wext("signal level %#x\n", priv->wstats.qual.level);
+	lbs_deb_wext("noise %#x\n", priv->wstats.qual.noise);
+
+	rssi = priv->wstats.qual.level - priv->wstats.qual.noise;
+	if (rssi < 15)
+		rssi_qual = rssi * POOR / 10;
+	else if (rssi < 20)
+		rssi_qual = (rssi - 15) * (FAIR - POOR) / 5 + POOR;
+	else if (rssi < 30)
+		rssi_qual = (rssi - 20) * (GOOD - FAIR) / 5 + FAIR;
+	else if (rssi < 40)
+		rssi_qual = (rssi - 30) * (VERY_GOOD - GOOD) /
+		    10 + GOOD;
+	else
+		rssi_qual = (rssi - 40) * (PERFECT - VERY_GOOD) /
+		    10 + VERY_GOOD;
+	quality = rssi_qual;
+
+	/* Quality by TX errors */
+	priv->wstats.discard.retries = priv->stats.tx_errors;
+
+	memset(&log, 0, sizeof(log));
+	log.hdr.size = cpu_to_le16(sizeof(log));
+	lbs_cmd_with_response(priv, CMD_802_11_GET_LOG, &log);
+
+	tx_retries = le32_to_cpu(log.retry);
+
+	if (tx_retries > 75)
+		tx_qual = (90 - tx_retries) * POOR / 15;
+	else if (tx_retries > 70)
+		tx_qual = (75 - tx_retries) * (FAIR - POOR) / 5 + POOR;
+	else if (tx_retries > 65)
+		tx_qual = (70 - tx_retries) * (GOOD - FAIR) / 5 + FAIR;
+	else if (tx_retries > 50)
+		tx_qual = (65 - tx_retries) * (VERY_GOOD - GOOD) /
+		    15 + GOOD;
+	else
+		tx_qual = (50 - tx_retries) *
+		    (PERFECT - VERY_GOOD) / 50 + VERY_GOOD;
+	quality = min(quality, tx_qual);
+
+	priv->wstats.discard.code = le32_to_cpu(log.wepundecryptable);
+	priv->wstats.discard.retries = tx_retries;
+	priv->wstats.discard.misc = le32_to_cpu(log.ackfailure);
+
+	/* Calculate quality */
+	priv->wstats.qual.qual = min_t(u8, quality, 100);
+	priv->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
+	stats_valid = 1;
+
+	/* update stats asynchronously for future calls */
+	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
+					0, 0, NULL);
+out:
+	if (!stats_valid) {
+		priv->wstats.miss.beacon = 0;
+		priv->wstats.discard.retries = 0;
+		priv->wstats.qual.qual = 0;
+		priv->wstats.qual.level = 0;
+		priv->wstats.qual.noise = 0;
+		priv->wstats.qual.updated = IW_QUAL_ALL_UPDATED;
+		priv->wstats.qual.updated |= IW_QUAL_NOISE_INVALID |
+		    IW_QUAL_QUAL_INVALID | IW_QUAL_LEVEL_INVALID;
+	}
+	/* Reschedule the work */
+	queue_delayed_work(priv->work_thread, &priv->stats_work, 2 * HZ);
+
+	lbs_deb_leave(LBS_DEB_WEXT);
+}
+#endif
 static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 {
+#if 0 /* TERRY(2010-0330): No RSSI command interrupt */
 	enum {
 		POOR = 30,
 		FAIR = 60,
@@ -877,6 +993,9 @@ out:
 	}
 
 	lbs_deb_leave(LBS_DEB_WEXT);
+#else
+	struct lbs_private *priv = dev->ml_priv;
+#endif
 	return &priv->wstats;
 
 

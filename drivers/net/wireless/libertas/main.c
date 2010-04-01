@@ -1226,6 +1226,10 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
 	INIT_DELAYED_WORK(&priv->assoc_work, lbs_association_worker);
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
+#if 1 /* TERRY(2010-0330): Activate periodic stats check */
+	INIT_DELAYED_WORK(&priv->stats_work, lbs_stats_worker);
+	queue_delayed_work(priv->work_thread, &priv->stats_work, HZ);
+#endif
 	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
 	INIT_WORK(&priv->sync_channel, lbs_sync_channel_worker);
 
@@ -1261,6 +1265,9 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	dev = priv->dev;
 
+#if 1 /* TERRY(2010-0330): Cancel stats check on remove */
+	cancel_delayed_work_sync(&priv->stats_work);
+#endif
 	cancel_delayed_work_sync(&priv->scan_work);
 	cancel_delayed_work_sync(&priv->assoc_work);
 	cancel_work_sync(&priv->mcast_work);
