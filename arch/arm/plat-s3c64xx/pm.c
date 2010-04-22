@@ -55,6 +55,9 @@
 
 #include <plat/pm.h>
 #include <plat/s3c64xx-dvfs.h>
+#if 1 /* TERRY (2010-0419): Save timer register */
+#include <plat/regs-timer.h>
+#endif
 
 unsigned long s3c_pm_flags;
 
@@ -324,6 +327,14 @@ static struct sleep_save sromc_save[] = {
 	SAVE_ITEM(S3C64XX_SROM_BC4),
 	SAVE_ITEM(S3C64XX_SROM_BC5),
 };
+
+#if 1 /* TERRY (2010-0409): Save timer register */
+static struct sleep_save timer_save[] = {
+	SAVE_ITEM(S3C_TCON),
+	SAVE_ITEM(S3C_TCFG0),
+	SAVE_ITEM(S3C_TCFG1),
+};
+#endif
 
 #ifdef CONFIG_S3C_PM_DEBUG
 
@@ -735,6 +746,9 @@ static int s3c6410_pm_enter(suspend_state_t state)
 	s3c6410_pm_do_save(gpio_save, ARRAY_SIZE(gpio_save));
 	s3c6410_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
 	s3c6410_pm_do_save(core_save, ARRAY_SIZE(core_save));
+#if 1 /* TERRY (2010-0419): Save timer register */
+	s3c6410_pm_do_save(timer_save, ARRAY_SIZE(timer_save));
+#endif
 	s3c6410_pm_do_save(sromc_save, ARRAY_SIZE(sromc_save));
 
 	/* ensure INF_REG0  has the resume address */
@@ -780,6 +794,10 @@ static int s3c6410_pm_enter(suspend_state_t state)
 	tmp = __raw_readl(S3C_PWR_CFG);
 	tmp &= ~(0x3<<5);
 	tmp |= (0x3<<5);
+#if 1 /* TERRY(2010-0416): Disable all other possible CPU wake up source */
+	tmp &= ~(0x1ff<<8);
+	tmp |= (0x1ff<<8);
+#endif
 	__raw_writel(tmp, S3C_PWR_CFG);
 
 	tmp = __raw_readl(S3C_SLEEP_CFG);
@@ -829,6 +847,9 @@ static int s3c6410_pm_enter(suspend_state_t state)
 
 	/* restore the system state */
 	s3c6410_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
+#if 1 /* TERRY (2010-0419): Save timer register */
+	s3c6410_pm_do_restore(timer_save, ARRAY_SIZE(timer_save));
+#endif
 	s3c6410_pm_do_restore(sromc_save, ARRAY_SIZE(sromc_save));
 	s3c6410_pm_do_restore(gpio_save, ARRAY_SIZE(gpio_save));
 	s3c6410_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));

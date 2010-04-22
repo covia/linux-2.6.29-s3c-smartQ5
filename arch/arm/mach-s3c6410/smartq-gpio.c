@@ -39,10 +39,7 @@
 #define HEADPHONE_DEBOUCE_INTERVAL 100 /* ms */
 
 static struct timer_list gpio_headp_sts_timer;
-#if 1 /* TERRY(2010-0318): WIFI power state */
-static int wifi_power_state = 0;
-#endif
-extern otg_phy_init(u32);
+extern void otg_phy_init(u32);
 
 static void gpio_headp_sts_check(unsigned long _data)
 {
@@ -57,31 +54,67 @@ static irqreturn_t smartq_headphone_detect_isr(int irq, void *dev_id)
 }
 
 #if 1 /* TERRY(2010-0317): GPIO relative PM support */
+static int wifi_pwr_en = 0;
+
 /*
  * WIFI Power control via GPIO
  */
-static void smartq_gpio_wifi_en(int power_state)
+int smartq_gpio_wifi_en(int power_state)
 {
-	if (power_state) { /* Power ON */
-		if (wifi_power_state) {
-			/* Power RESET */
-			gpio_set_value(S3C64XX_GPK(1), 0);
-			mdelay(2000);
-		}
+	int ret = 0;
+
+	if (wifi_pwr_en == power_state)
+		return 0;
+
+	if ((ret = gpio_request(S3C64XX_GPK(1), "GPK")) < 0) {
+		pr_err("%s: failed to request GPK1 for WiFi power control, errno %d.\n",
+			__func__, ret);
+		return ret;
+	}
+
+	if ((ret = gpio_request(S3C64XX_GPK(2), "GPK")) < 0) {
+		pr_err("%s: failed to request GPK1 for WiFi reset, errno %d.\n",
+			__func__, ret);
+		goto release2;
+	}
+
+	if (power_state) {
 		/* Power ON */
-		gpio_set_value(S3C64XX_GPK(1), 1);
+		if ((ret = gpio_direction_output(S3C64XX_GPK(1), 1)) < 0) {
+			pr_err("%s: failed to configure output direction for GPK1\n", __func__);
+			goto release1;
+		}
 		/* Reset */
-		gpio_set_value(S3C64XX_GPK(2), 0);
+		if ((ret = gpio_direction_output(S3C64XX_GPK(2), 0)) < 0) {
+			pr_err("%s: failed to configure output direction for GPK2\n", __func__);
+			goto release1;
+		}
 		mdelay(100);
+		/* Recover Reset to high */
 		gpio_set_value(S3C64XX_GPK(2), 1);
-		mdelay(100);
-		wifi_power_state = 1;
+		wifi_pwr_en = 1;
 	} else {
 		/* Power OFF */
-		gpio_set_value(S3C64XX_GPK(1), 0);
-		wifi_power_state = 0;
+		if ((ret = gpio_direction_output(S3C64XX_GPK(1), 0)) < 0) {
+			pr_err("%s: failed to configure output direction for GPK1\n", __func__);
+			goto release1;
+		}
+		wifi_pwr_en = 0;
 	}
+release1:
+	gpio_free(S3C64XX_GPK(1));
+
+release2:
+	gpio_free(S3C64XX_GPK(2));
+	return ret;
 }
+EXPORT_SYMBOL(smartq_gpio_wifi_en);
+
+int smartq_gpio_wifi_state(void)
+{
+	return wifi_pwr_en;
+}
+EXPORT_SYMBOL(smartq_gpio_wifi_state);
 
 /*
  * LED control via GPIO
@@ -131,55 +164,6 @@ out2:
 }
 EXPORT_SYMBOL(smartq_gpio_led_ctl);
 #endif
-
-static int smartq_gpio_wifi_init(void)
-{
-   int ret = 0;
-   
-   ret = gpio_request(S3C64XX_GPK(1), "GPK");
-   if (ret < 0) {
-      pr_err("%s: failed to request GPK1 for WiFi power control, errno %d.\n",
-	     __func__,ret);
-      return ret;
-   }
-   
-   ret = gpio_request(S3C64XX_GPK(2), "GPK");
-   if (ret < 0) {
-      pr_err("%s: failed to request GPK2 for WiFi reset, errno %d.\n", 
-	     __func__,ret);
-      goto err2;
-   }
-   
-   /* turn power on */
-   ret = gpio_direction_output(S3C64XX_GPK(1), 1);
-   if ( ret < 0) {
-      pr_err("%s: failed to configure output direction for GPK1, errno %d\n", 
-	     __func__,ret);
-      goto err1;
-   }
-    /* reset device */
-   ret = gpio_direction_output(S3C64XX_GPK(2), 0);
-   if ( ret < 0){
-      pr_err("%s: failed to configure output direction for GPK2, errno %d\n",
-	     __func__,ret);
-      goto err1;
-   }
-   mdelay(100);
-   gpio_set_value(S3C64XX_GPK(2), 1);
-   mdelay(100);
-   
-#if 1 /* TERRY(2010-0318): Hold GPIO for later use */
-   return ret;
-#endif
-
-err1:
-   gpio_free(S3C64XX_GPK(2));
-   
-err2:
-   gpio_free(S3C64XX_GPK(1));
-   
-   return ret;
-}
 
 static int smartq_gpio_audio_init(void)
 {
@@ -321,10 +305,6 @@ static void smartq_gpio_free(void)
         gpio_free(S3C64XX_GPL(1));
         gpio_free(S3C64XX_GPL(8));
         gpio_free(S3C64XX_GPL(11));
-
-        /* WIFI */
-        gpio_free(S3C64XX_GPK(2));
-        gpio_free(S3C64XX_GPK(1));
 }
 
 /***************************************************************
@@ -359,8 +339,40 @@ static ssize_t smartq_sysfs_store_usbextpwr(struct device *dev,
 
 static DEVICE_ATTR(usbextpwr_en, 0666,smartq_sysfs_show_usbextpwr,smartq_sysfs_store_usbextpwr);
 
+#if 1 /* TERRY(2010-0421): Wifi sysfs for userspace and debug */
+static int smartq_sysfs_show_wifi_en(struct device *dev, 
+				       struct device_attribute *attr, 
+				       char *buf)
+{
+   return snprintf(buf, PAGE_SIZE, "%d\n", wifi_pwr_en);
+}
+
+static ssize_t smartq_sysfs_store_wifi_en(struct device *dev,
+					   struct device_attribute *attr, 
+					   const char *buf, 
+					   size_t len)
+{
+   if (len < 1) return -EINVAL;
+   
+   if (strnicmp(buf, "on", 2) == 0 || strnicmp(buf, "1", 1) == 0) {
+      smartq_gpio_wifi_en(1);
+   } else if (strnicmp(buf, "off", 3) == 0 || strnicmp(buf, "0", 1) == 0) {
+      smartq_gpio_wifi_en(0);
+   } else {
+      return -EINVAL;
+   }
+   
+   return len;
+}
+
+static DEVICE_ATTR(wifi_en, 0666,smartq_sysfs_show_wifi_en,smartq_sysfs_store_wifi_en);
+#endif
+
 static struct attribute *smartq_attrs[] ={
    &dev_attr_usbextpwr_en.attr,
+#if 1 /* TERRY(2010-0421): Wifi sysfs for userspace and debug */
+   &dev_attr_wifi_en.attr,
+#endif
    NULL,   
 };
 static struct attribute_group smartq_attr_group ={
@@ -383,8 +395,6 @@ static int smartq_gpio_probe(struct platform_device *pdev)
       return -1;
    }
    
-   /* WiFi: power save and reset control */
-   smartq_gpio_wifi_init();
    smartq_gpio_audio_init();
    smartq_gpio_usb_init();
    
@@ -436,9 +446,6 @@ static void smartq_gpio_usb_en(int power_state)
 
 int smartq_gpio_suspend_late(struct platform_device *dev, pm_message_t state)
 {
-	/* WIFI power off */
-	smartq_gpio_wifi_en(0);
-
 	/* USB power off */
 	smartq_gpio_usb_en(0);
 
@@ -454,9 +461,6 @@ int smartq_gpio_resume_early(struct platform_device *dev)
 
 	/* USB power on */
 	smartq_gpio_usb_en(1);
-
-	/* WIFI power on */
-	smartq_gpio_wifi_en(1);
 
 	return 0;
 }

@@ -28,10 +28,6 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 
-#ifdef CONFIG_HAS_EARLYSUSPEND /* TERRY(2010-0317): Fix unable to suspend */
-#include <linux/earlysuspend.h>
-#endif
-
 #include "core.h"
 #include "bus.h"
 #include "host.h"
@@ -52,29 +48,15 @@ static struct wake_lock mmc_delayed_work_wake_lock;
 int use_spi_crc = 1;
 module_param(use_spi_crc, bool, 0);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND /* TERRY(2010-0317): Fix unable to suspend */
-/* MMC polling detection holds a wake lock, which could make system
- * never suspend.  Use Android mmc_early_suspend to control the wakelock.
- * But this implementation may affect the detection of MMC card in early
- * suspend stage. TODO: sysfs may be a better way.
+/*
+ * TERRY(2010-0421):
+ *   This driver acquires a waklock to prevent system suspend when 
+ *   checking MMC changes.  When MMC_CAP_NEEDS_POLL is set, the polling
+ *   check can make system never suspend.  In order to resovle this, 
+ *   we minimize the lifetime of the wakelock by aquiring the wakelock
+ *   in mmc_rescan() rather than in mmc_schedule_delayed_work().
  */
-static int stop_detect_polling = 0;
-static void mmc_early_suspend(struct early_suspend *h)
-{
-	stop_detect_polling = 1;
-}
-
-static void mmc_early_resume(struct early_suspend *h)
-{
-	stop_detect_polling = 0;
-}
-
-static struct early_suspend mmc_early_suspend_handler = {
-	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 5,
-	.suspend = mmc_early_suspend,
-	.resume = mmc_early_resume,
-};
-#endif /* CONFIG_HAS_EARLYSUSPEND */
+#define CVKK_SUSPEND_FIX
 
 /*
  * Internal function. Schedule delayed work in the MMC work queue.
@@ -82,11 +64,7 @@ static struct early_suspend mmc_early_suspend_handler = {
 static int mmc_schedule_delayed_work(struct delayed_work *work,
 				     unsigned long delay)
 {
-#if 1 /* TERRY(2010-0317): Holding wakelock conditionally */
-	if (!stop_detect_polling && !wake_lock_active(&mmc_delayed_work_wake_lock)) {
-		wake_lock(&mmc_delayed_work_wake_lock);
-	}
-#else
+#ifndef CVKK_SUSPEND_FIX
 	wake_lock(&mmc_delayed_work_wake_lock);
 #endif
 	return queue_delayed_work(workqueue, work, delay);
@@ -786,10 +764,6 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
-#if 1 /* TERRY(2010-0317): Make sure there is only one work in the queue */
-	cancel_delayed_work(&host->detect);
-	mmc_flush_scheduled_work();
-#endif
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -804,12 +778,9 @@ void mmc_rescan(struct work_struct *work)
 	int err;
 	int extend_wakelock = 0;
 
-#if 1 /* TERRY(2010-0317): No operation if no active wakelock */
-	if (!wake_lock_active(&mmc_delayed_work_wake_lock)) {
-		goto out;
-	}
+#ifndef CVKK_SUSPEND_FIX
+	wake_lock(&mmc_delayed_work_wake_lock);
 #endif
-
 	mmc_bus_get(host);
 
 	/* if there is a card registered, check whether it is still present */
@@ -887,11 +858,7 @@ void mmc_rescan(struct work_struct *work)
 	mmc_power_off(host);
 
 out:
-#if 1 /* TERRY(2010-0317): Execute this only if wakelock is active */
-	if (extend_wakelock && wake_lock_active(&mmc_delayed_work_wake_lock))
-#else
 	if (extend_wakelock)
-#endif
 		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
 	else
 		wake_unlock(&mmc_delayed_work_wake_lock);
@@ -981,9 +948,6 @@ int mmc_resume_host(struct mmc_host *host)
 	if (host->bus_resume_flags & MMC_BUSRESUME_MANUAL_RESUME) {
 		host->bus_resume_flags |= MMC_BUSRESUME_NEEDS_RESUME;
 		mmc_bus_put(host);
-#if 1 /* TERRY(2010-0317): Re-enable detect polling right after resume */
-		stop_detect_polling = 0;
-#endif
 		return 0;
 	}
 
@@ -994,10 +958,6 @@ int mmc_resume_host(struct mmc_host *host)
 		host->bus_ops->resume(host);
 	}
 	mmc_bus_put(host);
-
-#if 1 /* TERRY(2010-0317): Re-enable detect polling right after resume */
-	stop_detect_polling = 0;
-#endif
 
 	/*
 	 * We add a slight delay here so that resume can progress
@@ -1050,10 +1010,6 @@ static int __init mmc_init(void)
 	if (ret)
 		goto unregister_host_class;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND /* TERRY(2010-0317): Fix unable to suspend */
-	register_early_suspend(&mmc_early_suspend_handler);
-#endif
-
 	return 0;
 
 unregister_host_class:
@@ -1068,9 +1024,6 @@ destroy_workqueue:
 
 static void __exit mmc_exit(void)
 {
-#ifdef CONFIG_HAS_EARLYSUSPEND /* TERRY(2010-0317): Fix unable to suspend */
-	unregister_early_suspend(&mmc_early_suspend_handler);
-#endif
 	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();

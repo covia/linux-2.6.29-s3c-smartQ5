@@ -25,15 +25,6 @@
 
 #include <asm/gpio.h>
 
-/* TERRY(2010-0310): SIMULATE_KEY_ON_RESUME
- *   When the PWR key(scancode: 116) wakes up the device, the key event is dropped
- *   and cannot be passed to userspace.  As a result, Android WindowManager or
- *   KeyGuard will not get notified to wake themselves by only one keypress.  We
- *   simulate the key event on resume to fix this issue.  This implementation is
- *   moved from 2.6.24, which is written by Christine, CVKK.
- */
-#define SIMULATE_KEY_ON_RESUME
-
 #if 1 /* 2009-0903, modified by CVKK(JC) */
 #define HOLD_KEY_TIME 1*HZ
 #define MULTI_FUN_KEY_DEF KEY_MENU  /* keycode: 139 */
@@ -53,10 +44,6 @@ static struct timer_list cv_handle_multi_key_plus_timer;
 static int multi_key_plus_code = MULTI_FUN_KEY_PLUS;
 #endif
 
-#ifdef SIMULATE_KEY_ON_RESUME
-static int resumed = 0;
-#endif
-
 struct gpio_button_data {
 	struct gpio_keys_button *button;
 	struct input_dev *input;
@@ -67,6 +54,33 @@ struct gpio_keys_drvdata {
 	struct input_dev *input;
 	struct gpio_button_data data[0];
 };
+
+#if 1 /* TERRY(2010-0401): Simulate power key when system wakes up */
+/* 
+ * When the PWR key(scancode: 116) wakes up the device, the key event is dropped
+ * and cannot be passed to userspace.  As a result, Android WindowManager or
+ * KeyGuard will not get notified to wake themselves by only one keypress.  In
+ * order to fix this issue, we implement a function for wakelock.c to simulate 
+ * the key event when system wakes up (either from button or alarm) to fix this
+ * issue.
+ */
+
+struct input_dev *input_device;
+
+void gpio_keys_trigger_wakeup_key(void)
+{
+	if (!input_device) {
+		return;
+	}
+
+	input_event(input_device, EV_KEY, KEY_POWER, 1);
+	input_sync(input_device);
+	mdelay(5);
+	input_event(input_device, EV_KEY, KEY_POWER, 0);
+	input_sync(input_device);
+}
+EXPORT_SYMBOL(gpio_keys_trigger_wakeup_key);
+#endif
 
 static void gpio_keys_report_event(struct gpio_button_data *bdata)
 {
@@ -178,19 +192,6 @@ static void cv_handle_multi_key_plus(unsigned long _data)
 static void gpio_check_button(unsigned long _data)
 {
 	struct gpio_button_data *data = (struct gpio_button_data *)_data;
-#ifdef SIMULATE_KEY_ON_RESUME
-	if (resumed) {
-		struct gpio_keys_button *button = data->button;
-		unsigned long now_time = jiffies;
-
-		resumed = 0;
-		button->active_low = 0;
-		gpio_keys_report_event(data);
-		button->active_low = 1;
-		/* TERRY(2010-0317): Try to increase the time if no effect(org 5) */
-		while (time_before(jiffies, now_time + msecs_to_jiffies(50)));
-	}
-#endif
 	gpio_keys_report_event(data);
 }
 
@@ -243,6 +244,10 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		__set_bit(EV_REP, input->evbit);
 
 	ddata->input = input;
+
+#if 1 /* TERRY(2010-0401): Save the address of input */
+	input_device = input;
+#endif
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
@@ -350,6 +355,10 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 	struct input_dev *input = ddata->input;
 	int i;
 
+#if 1 /* TERRY(2010-0401): Clear the address of input */
+	input_device = NULL;
+#endif
+
 	device_init_wakeup(&pdev->dev, 0);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
@@ -369,6 +378,7 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int gpio_keys_suspend(struct platform_device *pdev, pm_message_t state)
 {
+#if 0 /* TERRY(2010-0401): We already set the wake up source in mach-smdk6410.c */
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int i;
 
@@ -381,20 +391,15 @@ static int gpio_keys_suspend(struct platform_device *pdev, pm_message_t state)
 			}
 		}
 	}
-
+#endif
 	return 0;
 }
 
 static int gpio_keys_resume(struct platform_device *pdev)
 {
+#if 0 /* TERRY(2010-0401): We already set the wake up source in mach-smdk6410.c */
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int i;
-
-#ifdef SIMULATE_KEY_ON_RESUME
-	if (pdev->id == 1) {
-		resumed = 1;
-	}
-#endif
 
 	if (device_may_wakeup(&pdev->dev)) {
 		for (i = 0; i < pdata->nbuttons; i++) {
@@ -405,7 +410,7 @@ static int gpio_keys_resume(struct platform_device *pdev)
 			}
 		}
 	}
-
+#endif
 	return 0;
 }
 #else

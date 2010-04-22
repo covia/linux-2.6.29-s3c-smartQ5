@@ -225,7 +225,7 @@ static void expire_wake_lock(struct wake_lock *lock)
 /* Caller must acquire the list_lock spinlock */
 static void print_active_locks(int type)
 {
-	unsigned long irqflags;
+	//unsigned long irqflags;
 	struct wake_lock *lock;
 
 	BUG_ON(type >= WAKE_LOCK_TYPE_COUNT);
@@ -271,6 +271,10 @@ long has_wake_lock(int type)
 	return ret;
 }
 
+#if 1 /* TERRY(2010-0401): Simulate power key after resume */
+extern void gpio_keys_trigger_wakeup_key(void);
+#endif
+
 static void suspend(struct work_struct *work)
 {
 	int ret;
@@ -297,6 +301,11 @@ static void suspend(struct work_struct *work)
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
 	}
+#if 1 /* TERRY(2010-0401): Simulate power key after resume */
+	if (ret == 0) {
+		gpio_keys_trigger_wakeup_key();
+	}
+#endif
 	if (current_event_num == entry_event_num) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: pm_suspend returned with no event\n");

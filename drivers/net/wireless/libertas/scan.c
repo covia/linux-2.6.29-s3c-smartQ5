@@ -955,10 +955,21 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		goto out;
 	}
 
+#if 1 /* 2009-1104, modified by CVKK(JC) , For android WiFi coundn't re-scan issue */
+	if (!netif_running(dev)) {
+		dev_open(dev);
+		mdelay(600);
+		if (!netif_running(dev)) {
+			ret = -ENETDOWN;
+			goto out;
+		}
+	}
+#else
 	if (!netif_running(dev)) {
 		ret = -ENETDOWN;
 		goto out;
 	}
+#endif
 
 	/* mac80211 does this:
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);

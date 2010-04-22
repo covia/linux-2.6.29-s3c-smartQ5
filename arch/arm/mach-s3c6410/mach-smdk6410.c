@@ -643,7 +643,11 @@ struct s3c_hsmmc_cfg s3c_hsmmc1_platform = {
 struct s3c_hsmmc_cfg s3c_hsmmc2_platform = {
 	.hwport = 2,
 	.enabled = 1,
+#if 1 /* TERRY(2010-0421): Add MMC_CAP_NEEDS_POLL for SDIO */
+	.host_caps = HOST_CAPS | MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL,
+#else
 	.host_caps = HOST_CAPS | MMC_CAP_SDIO_IRQ,
+#endif
 	.bus_width = 4,
 	.highspeed = 0,
 	.max_clock = 25 * 1000 * 1000,
@@ -970,7 +974,9 @@ void s3c_config_wakeup_source(void)
 	__raw_writel((0x0fffffff&~(3<<9)), S3C_EINT_MASK);
 #endif
 
+#if 0 /* TERRY(2010-0415): Disable internal interrupt to wake up */
 	/* Alarm Wakeup Enable */
 	__raw_writel((__raw_readl(S3C_PWR_CFG) & ~(0x1 << 10)), S3C_PWR_CFG);
+#endif
 }
 EXPORT_SYMBOL(s3c_config_wakeup_source);

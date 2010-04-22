@@ -495,7 +495,9 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 	ret = 0;
 
 release:
+#if 0 /* TERRY(2010-0414): Removed */
 	sdio_set_block_size(card->func, 0);
+#endif
 	sdio_release_host(card->func);
 	kfree(chunk_buffer);
 release_fw:
@@ -634,7 +636,9 @@ static int if_sdio_prog_real(struct if_sdio_card *card)
 	ret = 0;
 
 release:
+#if 0 /* TERRY(2010-0414): Removed */
 	sdio_set_block_size(card->func, 0);
+#endif
 	sdio_release_host(card->func);
 	kfree(chunk_buffer);
 release_fw:
@@ -678,6 +682,11 @@ static int if_sdio_prog_firmware(struct if_sdio_card *card)
 
 success:
 	ret = 0;
+#if 1 /* TERRY(2010-0414): Set larger block size for normal transfer */
+	sdio_claim_host(card->func);
+	sdio_set_block_size(card->func, 256);
+	sdio_release_host(card->func);
+#endif
 
 out:
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
@@ -1009,6 +1018,10 @@ static struct sdio_driver if_sdio_driver = {
 /* Module functions                                                */
 /*******************************************************************/
 
+#if 1 /* TERRY(2010-0414): WIFI gpio function */
+extern int smartq_gpio_wifi_en(int power_state);
+#endif
+
 static int __init if_sdio_init_module(void)
 {
 	int ret = 0;
@@ -1020,6 +1033,14 @@ static int __init if_sdio_init_module(void)
 
 	ret = sdio_register_driver(&if_sdio_driver);
 
+#if 1 /* TERRY(2010-0414): Power on WIFI module */
+	if (smartq_gpio_wifi_en(1) != 0) {
+		printk(KERN_ERR "libertas_sdio: Cannot turn WIFI on\n");
+		sdio_unregister_driver(&if_sdio_driver);
+		return -1;
+	}
+#endif
+
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 
 	return ret;
@@ -1028,6 +1049,10 @@ static int __init if_sdio_init_module(void)
 static void __exit if_sdio_exit_module(void)
 {
 	lbs_deb_enter(LBS_DEB_SDIO);
+
+#if 1 /* TERRY(2010-0414): Power off WIFI module */
+	smartq_gpio_wifi_en(0);
+#endif
 
 	sdio_unregister_driver(&if_sdio_driver);
 
