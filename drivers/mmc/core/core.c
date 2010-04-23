@@ -916,6 +916,12 @@ int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 
+#ifdef CVKK_SUSPEND_FIX
+	/* Wait for pending wakelock to expire */
+	while (wake_lock_active(&mmc_delayed_work_wake_lock)) {
+		msleep(100);
+	}
+#endif
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 		if (host->bus_ops->suspend)

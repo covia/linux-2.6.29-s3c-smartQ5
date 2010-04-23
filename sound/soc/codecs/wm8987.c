@@ -97,10 +97,10 @@ static int wm8987_write(struct snd_soc_codec *codec, unsigned int reg,
 #ifdef CVKK_SUSPEND_POP_NOISE_FIX
 	/* 
 	 * Setting R26 step by step can generate pop noise. To reduce it,
-	 * only 0x198 and 0x000 is allowed to be written.
+	 * only 0x1d8 and 0x000 is allowed to be written.
 	 */
 	if (reg == WM8987_PWR2) {
-		if (value != 0x198 && value != 0x000) {
+		if (value != 0x1d8 && value != 0x000) {
 			wm8987_write_reg_cache (codec, reg, value);
 			return 0;
 		}
