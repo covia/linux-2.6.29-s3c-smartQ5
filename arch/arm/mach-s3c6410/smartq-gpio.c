@@ -220,6 +220,8 @@ static int smartq_gpio_audio_init(void)
       goto err;
    }
    
+   gpio_set_value(S3C64XX_GPK(12), gpio_get_value(S3C64XX_GPL(12)) ? 0 : 1);
+
    return ret;
    
 err:
