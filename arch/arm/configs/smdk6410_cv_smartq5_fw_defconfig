@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29
-# Thu Apr 22 11:10:31 2010
+# Thu Apr 29 14:07:58 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -463,7 +463,9 @@ CONFIG_MAC80211_RC_DEFAULT="minstrel"
 # CONFIG_MAC80211_LEDS is not set
 # CONFIG_MAC80211_DEBUG_MENU is not set
 # CONFIG_WIMAX is not set
-# CONFIG_RFKILL is not set
+CONFIG_RFKILL=y
+CONFIG_RFKILL_PM=y
+# CONFIG_RFKILL_INPUT is not set
 # CONFIG_NET_9P is not set
 
 #
@@ -503,6 +505,7 @@ CONFIG_ANDROID_PMEM=y
 # CONFIG_ENCLOSURE_SERVICES is not set
 # CONFIG_KERNEL_DEBUGGER_CORE is not set
 CONFIG_UID_STAT=y
+# CONFIG_WL127X_RFKILL is not set
 # CONFIG_APANIC is not set
 CONFIG_APANIC_PLABEL="kpanic"
 # CONFIG_C2PORT is not set
@@ -603,6 +606,7 @@ CONFIG_LIBERTAS_SDIO=m
 # CONFIG_USB_PEGASUS is not set
 # CONFIG_USB_RTL8150 is not set
 # CONFIG_USB_USBNET is not set
+# CONFIG_USB_HSO is not set
 # CONFIG_WAN is not set
 CONFIG_PPP=y
 CONFIG_PPP_MULTILINK=y

@@ -205,7 +205,9 @@ static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
 {
 	struct s3c_i2sv2_info *i2s;
 	struct snd_soc_dai *dai;
-        struct clk *cm, *cf;
+#if 1 /* 2010-0203, added by CVKK(JC), For SmartQ5 */
+	struct clk *cm, *cf;
+#endif
 	int ret;
 
 	if (pdev->id >= ARRAY_SIZE(s3c64xx_i2s)) {
@@ -218,34 +220,36 @@ static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
 
 	i2s->dma_capture = &s3c64xx_i2s_pcm_stereo_in[pdev->id];
 	i2s->dma_playback = &s3c64xx_i2s_pcm_stereo_out[pdev->id];
-        /* 2010-0203, added by CVKK(JC), For SmartQ5 */
-        i2s->iis_cclk = clk_get(NULL, "sclk_audio0");
-        if (IS_ERR(i2s->iis_cclk)) {
-	   printk("failed to get clk(sclk_audio0)\n");
-	   goto err;
+
+#if 1 /* 2010-0203, added by CVKK(JC), For SmartQ5 */
+	i2s->iis_cclk = clk_get(NULL, "sclk_audio0");
+	if ((ret = IS_ERR(i2s->iis_cclk)) != 0) {
+		printk("failed to get clk(sclk_audio0)\n");
+		goto err;
 	}
-        cm = clk_get(NULL, "mout_epll");
-        if (IS_ERR(cm)) {
-	   printk("failed to get mout_epll\n");
-	   goto err;
+	cm = clk_get(NULL, "mout_epll");
+	if ((ret = IS_ERR(cm)) != 0) {
+		printk("failed to get mout_epll\n");
+		goto err;
 	}
-        if (clk_set_parent(i2s->iis_cclk, cm)) {
-	   printk("failed to set MOUTepll as parent of CLKAUDIO0\n");
-	   goto err;
+	if ((ret = clk_set_parent(i2s->iis_cclk, cm)) != 0) {
+		printk("failed to set MOUTepll as parent of CLKAUDIO0\n");
+		goto err;
 	}
-        cf = clk_get(NULL, "fout_epll");
-        if (IS_ERR(cf)) {
-	   printk("failed to get fout_epll\n");
-	   goto err;
+	cf = clk_get(NULL, "fout_epll");
+	if ((ret = IS_ERR(cf)) != 0) {
+		printk("failed to get fout_epll\n");
+		goto err;
 	}
-        clk_enable(cf);
-        if (clk_set_parent(cm, cf)) {
-	   printk("failed to set FOUTepll as parent of MOUTepll\n");
-	   goto err;
+	clk_enable(cf);
+	if ((ret = clk_set_parent(cm, cf)) != 0) {
+		printk("failed to set FOUTepll as parent of MOUTepll\n");
+		goto err;
 	}
-        clk_put(cf);
-        clk_put(cm);
-   
+	clk_put(cf);
+	clk_put(cm);
+#endif
+
 	ret = s3c_i2sv2_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;

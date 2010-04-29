@@ -348,7 +348,11 @@ static void __init sec_init_clocksource(unsigned long rate)
  *  Tick Timer initialization
  * ---------------------------------------------------------------------------
  */
+#if 1 /* TERRY(2010-0424): Fix section mismatch */
+static void __initdata sec_dynamic_timer_setup(void)
+#else
 static void sec_dynamic_timer_setup(void)
+#endif
 {
 	struct clk	*ck_ref = clk_get(NULL, "timers");
 	unsigned long	rate;

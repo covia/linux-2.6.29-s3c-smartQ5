@@ -84,6 +84,7 @@ int smartq_gpio_wifi_en(int power_state)
 			pr_err("%s: failed to configure output direction for GPK1\n", __func__);
 			goto release1;
 		}
+		mdelay(100); // Warming up
 		/* Reset */
 		if ((ret = gpio_direction_output(S3C64XX_GPK(2), 0)) < 0) {
 			pr_err("%s: failed to configure output direction for GPK2\n", __func__);
