@@ -59,6 +59,9 @@ static struct usb_driver usb_serial_driver = {
    drivers depend on it.
 */
 
+#if 23
+static ushort maxSize = 0;
+#endif
 static int debug;
 /* initially all NULL */
 static struct usb_serial *serial_table[SERIAL_TTY_MINORS];
@@ -841,6 +844,9 @@ int usb_serial_probe(struct usb_interface *interface,
 			goto probe_error;
 		}
 		buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+#if 23
+		buffer_size = (endpoint->wMaxPacketSize > maxSize) ? endpoint->wMaxPacketSize:maxSize;
+#endif
 		port->bulk_in_size = buffer_size;
 		port->bulk_in_endpointAddress = endpoint->bEndpointAddress;
 		port->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
@@ -891,6 +897,10 @@ int usb_serial_probe(struct usb_interface *interface,
 				goto probe_error;
 			}
 			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+#if 23
+		        buffer_size = (endpoint->wMaxPacketSize > maxSize) ? 
+			                endpoint->wMaxPacketSize : maxSize;
+#endif
 			port->interrupt_in_endpointAddress =
 						endpoint->bEndpointAddress;
 			port->interrupt_in_buffer = kmalloc(buffer_size,
@@ -922,6 +932,10 @@ int usb_serial_probe(struct usb_interface *interface,
 				goto probe_error;
 			}
 			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+#if 23
+		        buffer_size = (endpoint->wMaxPacketSize > maxSize) ? 
+			                  endpoint->wMaxPacketSize : maxSize;
+#endif
 			port->interrupt_out_size = buffer_size;
 			port->interrupt_out_endpointAddress =
 						endpoint->bEndpointAddress;
@@ -1269,3 +1283,7 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
+#if 23
+module_param(maxSize, ushort, 0);
+MODULE_PARM_DESC(maxSize, "User specified USB endpoint size");
+#endif

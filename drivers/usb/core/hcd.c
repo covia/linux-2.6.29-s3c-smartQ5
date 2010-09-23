@@ -1630,6 +1630,10 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 	return status;
 }
 
+#if 1 /* TERRY(2010-0504): re-enable external USB port */
+extern void otg_phy_init(u32);
+#endif
+
 /* Workqueue routine for root-hub remote wakeup */
 static void hcd_resume_work(struct work_struct *work)
 {
@@ -1638,6 +1642,9 @@ static void hcd_resume_work(struct work_struct *work)
 
 	usb_lock_device(udev);
 	usb_mark_last_busy(udev);
+#if 1 /* TERRY(2010-0504): re-enable external USB port */
+	otg_phy_init(0x42);
+#endif
 	usb_external_resume_device(udev, PMSG_REMOTE_RESUME);
 	usb_unlock_device(udev);
 }

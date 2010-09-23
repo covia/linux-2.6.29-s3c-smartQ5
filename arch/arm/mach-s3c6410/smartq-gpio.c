@@ -84,7 +84,6 @@ int smartq_gpio_wifi_en(int power_state)
 			pr_err("%s: failed to configure output direction for GPK1\n", __func__);
 			goto release1;
 		}
-		mdelay(100); // Warming up
 		/* Reset */
 		if ((ret = gpio_direction_output(S3C64XX_GPK(2), 0)) < 0) {
 			pr_err("%s: failed to configure output direction for GPK2\n", __func__);
@@ -342,6 +341,32 @@ static ssize_t smartq_sysfs_store_usbextpwr(struct device *dev,
 
 static DEVICE_ATTR(usbextpwr_en, 0666,smartq_sysfs_show_usbextpwr,smartq_sysfs_store_usbextpwr);
 
+static int smartq_sysfs_show_usb_pwr(struct device *dev, 
+		                     struct device_attribute *attr, 
+				     char *buf)
+{
+   return snprintf(buf, PAGE_SIZE, "%d\n", gpio_get_value(S3C64XX_GPL(1)));
+}
+
+static ssize_t smartq_sysfs_store_usb_pwr(struct device *dev, struct device_attribute *attr, 
+					  const char *buf, size_t len)
+{
+   if (len < 1) return -EINVAL;
+   
+   if (strnicmp(buf, "on", 2) == 0 || strnicmp(buf, "1", 1) == 0) {
+       gpio_set_value(S3C64XX_GPL(1), 1);
+   } else if (strnicmp(buf, "off", 3) == 0 || strnicmp(buf, "0", 1) == 0) {
+       gpio_set_value(S3C64XX_GPL(1), 0);
+   } else {
+       return -EINVAL;
+   }
+   
+   return len;
+}
+
+static DEVICE_ATTR(usb_host_power, 0666, smartq_sysfs_show_usb_pwr, smartq_sysfs_store_usb_pwr);
+
+
 #if 1 /* TERRY(2010-0421): Wifi sysfs for userspace and debug */
 static int smartq_sysfs_show_wifi_en(struct device *dev, 
 				       struct device_attribute *attr, 
@@ -373,6 +398,7 @@ static DEVICE_ATTR(wifi_en, 0666,smartq_sysfs_show_wifi_en,smartq_sysfs_store_wi
 
 static struct attribute *smartq_attrs[] ={
    &dev_attr_usbextpwr_en.attr,
+   &dev_attr_usb_host_power.attr,
 #if 1 /* TERRY(2010-0421): Wifi sysfs for userspace and debug */
    &dev_attr_wifi_en.attr,
 #endif

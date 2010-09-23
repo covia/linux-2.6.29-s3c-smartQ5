@@ -45,6 +45,8 @@ static int bt_rfkill_toggle_radio(void *data, enum rfkill_state state)
 			break;
 		case RFKILL_STATE_HARD_BLOCKED:
 			break;
+		case RFKILL_STATE_MAX:
+			break;
 	}
 
         return 0;

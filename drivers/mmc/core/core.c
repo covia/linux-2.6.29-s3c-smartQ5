@@ -778,7 +778,7 @@ void mmc_rescan(struct work_struct *work)
 	int err;
 	int extend_wakelock = 0;
 
-#ifndef CVKK_SUSPEND_FIX
+#ifdef CVKK_SUSPEND_FIX
 	wake_lock(&mmc_delayed_work_wake_lock);
 #endif
 	mmc_bus_get(host);

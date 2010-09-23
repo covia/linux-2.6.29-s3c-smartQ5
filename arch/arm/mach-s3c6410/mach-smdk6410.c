@@ -338,6 +338,14 @@ struct platform_device sec_device_battery = {
 	.id		= -1,
 };
 
+#if 23 
+// Add standard interface to RF devices for switching them on and off.
+struct platform_device sec_device_bluetooth = {
+	.name	= "smdk6410-bluetooth",
+	.id		= -1,
+};
+#endif
+
 static struct s3c6410_pmem_setting pmem_setting = {
  	.pmem_start = RESERVED_PMEM_START,
 	.pmem_size = RESERVED_PMEM,
@@ -436,6 +444,9 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 #endif
 	&sec_device_backlight,
 	&sec_device_battery,
+#if 23
+	&sec_device_bluetooth,
+#endif
 };
 
 static struct i2c_board_info i2c_devs0[] __initdata = {

@@ -26,3 +26,5 @@ obj-$(CONFIG_PM)    += pm.o
 
 obj-$(CONFIG_MACH_SMDK6410)	+= mach-smdk6410.o
 obj-$(CONFIG_MACH_SMDK6410)     += smartq-gpio.o
+obj-$(CONFIG_RFKILL) += bluetooth.o
+
