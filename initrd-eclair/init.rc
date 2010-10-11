@@ -195,6 +195,15 @@ loglevel 3
     chmod 0777 /dev/s3c_serial2
     chmod 0777 /dev/s3c_serial3
 
+    #tim: also pmem*
+    chmod 0777 /dev/pmem
+    chmod 0777 /dev/pmem_jpeg
+    chmod 0777 /dev/pmem_picture
+    chmod 0777 /dev/pmem_preview
+    chmod 0777 /dev/pmem_render
+    chmod 0777 /dev/pmem_stream
+    chmod 0777 /dev/pmem_stream2
+
     # create dalvik-cache and double-check the perms
     mkdir /data/dalvik-cache 0771 system system
     chown system system /data/dalvik-cache

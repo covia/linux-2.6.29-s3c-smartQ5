@@ -5,9 +5,10 @@ on boot
     setprop ro.com.google.locationfeatures 1
     setprop wifi.interface eth0
     setprop ro.setupwizard.mode DISABLED
+    setprop media.stagefright.enable-player false
     write /proc/sys/vm/swappiness 100
     write /sys/devices/platform/smartq_gpio/usb_host_power 1
-
+	
 service wpa_supplicant /system/bin/logwrapper /system/bin/wpa_supplicant -Dwext -ieth0 -c/data/misc/wifi/wpa_supplicant.conf -dd -t
         group wifi system
         disabled
