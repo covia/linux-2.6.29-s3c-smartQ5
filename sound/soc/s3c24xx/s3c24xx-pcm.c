@@ -53,11 +53,11 @@ static const struct snd_pcm_hardware s3c24xx_pcm_hardware = {
 				    SNDRV_PCM_FMTBIT_S8,
 	.channels_min		= 2,
 	.channels_max		= 2,
-	.buffer_bytes_max	= 128*1024,
+	.buffer_bytes_max	= 512*1024,
 	.period_bytes_min	= PAGE_SIZE,
 	.period_bytes_max	= PAGE_SIZE*2,
 	.periods_min		= 2,
-	.periods_max		= 128,
+	.periods_max		= 512,
 	.fifo_size		= 32,
 };
 
