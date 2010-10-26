@@ -1,6 +1,13 @@
 ###
 # Jackal Chan (2010-0119)
+# tim chen (2010-1026)
 ###
+
+*** IMPORTANT ***
+
+  initrd: default.prop / init.rc / init.smdk6410.rc 
+  these 3 files are copied from covia/ directory.
+  please checkout these files in android source repo if you want to build kernel only.
 
 How to build kernel
 ===================
@@ -8,7 +15,7 @@ o set the kernel tree configuration of SmartQ5
   - `smdk6410_q5_sdcard_defconfig' : without initrd image (SD-card)
   $ make smdk6410_q5_sdcard_defconfig
 OR
-  - `smdk6410_q5_nane_defconfig' : with initrd image (iNand)
+  - `smdk6410_q5_nand_defconfig' : with initrd image (iNand)
   $ make smdk6410_q5_nand_defconfig
   
 o build the kernel image 
