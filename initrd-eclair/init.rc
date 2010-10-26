@@ -23,8 +23,20 @@ loglevel 3
 
 # create mountpoints
     mkdir /mnt 0775 root system
-    mkdir /mnt/sdcard 0000 system system
+#    mkdir /mnt/sdcard 0000 system system    # Removed by Mingszu Liang.
     mkdir /mnt/usb    0777 system system
+    
+# Added by Mingszu Liang. - BEGIN
+    mkdir /mnt/extdev     0777 system system
+    mkdir /mnt/extdev/usb 0777 system system
+    mkdir /mnt/extdev/sdcard 0000 system system
+    symlink /mnt/extdev /extdev 
+    symlink /mnt/extdev/sdcard /mnt/sdcard 
+    
+    export EXTERNAL_ALL_STORAGES_ROOT /mnt/extdev
+    export EXTERNAL_ALL_STORAGES_USB /mnt/extdev/usb
+    export EXTERNAL_ALL_STORAGES_SD /mnt/extdev/sdcard
+# Added by Mingszu Liang. - END
 
 # Create cgroup mount point for cpu accounting
     mkdir /acct
@@ -146,9 +158,13 @@ loglevel 3
 
 # create basic filesystem structure
     mkdir /data/misc 01771 system misc
+    chown system misc /data/misc
+    chmod 01771 /data/misc
     mkdir /data/misc/bluetoothd 0770 bluetooth bluetooth
+    chown bluetooth bluetooth /data/misc/bluetoothd
     mkdir /data/misc/bluetooth 0770 system system
     mkdir /data/misc/keystore 0700 keystore keystore
+    chown keystore keystore /data/misc/keystore
     mkdir /data/misc/vpn 0770 system system
     mkdir /data/misc/systemkeys 0700 system system
     mkdir /data/misc/vpn/profiles 0770 system system
@@ -159,18 +175,24 @@ loglevel 3
 #tim: covia patched
     mkdir /data/misc/wifi 0777 wifi wifi
     mkdir /data/misc/wifi/sockets 0777 wifi wifi
+    chown wifi wifi /data/misc/wifi
+    chown wifi wifi /data/misc/wifi/sockets
     chmod 0777 /data/misc/wifi
     chmod 0666 /data/misc/wifi/wpa_supplicant.conf
     mkdir /data/system 0777 system system
     mkdir /data/system/wpa_supplicant 0777 wifi wifi
+    chown wifi wifi /data/system/wpa_supplicant
     mkdir /data/system/ts 0777 system system
     mkdir /data/system/micvol 0777 system system    
     mkdir /data/system/usb 0777 system system
     chmod 0777 /data/system/init.smdk6410.density.sh
     mkdir /data/misc/dhcp 0777 dhcp dhcp
+    chown dhcp dhcp /data/misc/dhcp
     chmod 0777 /data/misc/dhcp
     mkdir /data/local 0771 shell shell
+    chown shell shell /data/local
     mkdir /data/local/tmp 0771 shell shell
+    chown shell shell /data/local/tmp
     mkdir /data/data 0771 system system
     mkdir /data/app-private 0771 system system
     mkdir /data/app 0771 system system
@@ -361,7 +383,7 @@ service ril-daemon /system/bin/rild
     socket rild-debug stream 660 radio system
     user root
     group radio cache inet misc audio
-    disabled
+#    disabled
 
 service zygote /system/bin/app_process -Xzygote /system/bin --zygote --start-system-server
     socket zygote stream 666

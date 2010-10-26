@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29
-# Thu Sep 23 16:02:41 2010
+# Mon Oct 25 16:12:20 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1072,7 +1072,7 @@ CONFIG_SND_SOC_WM8987=y
 CONFIG_HID_SUPPORT=y
 CONFIG_HID=y
 # CONFIG_HID_DEBUG is not set
-# CONFIG_HIDRAW is not set
+CONFIG_HIDRAW=y
 
 #
 # USB Input Devices
@@ -1086,7 +1086,7 @@ CONFIG_USB_HIDDEV=y
 #
 CONFIG_HID_COMPAT=y
 # CONFIG_HID_A4TECH is not set
-# CONFIG_HID_APPLE is not set
+CONFIG_HID_APPLE=y
 # CONFIG_HID_BELKIN is not set
 # CONFIG_HID_CHERRY is not set
 # CONFIG_HID_CHICONY is not set

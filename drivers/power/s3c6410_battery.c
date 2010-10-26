@@ -76,7 +76,8 @@ typedef enum {
 	CHARGER_BATTERY = 0,
 	CHARGER_USB,
 	CHARGER_AC,
-	CHARGER_DISCHARGE
+	CHARGER_DISCHARGE,
+	CHARGER_UNKNOWN      // added by chris(CVKK)  2010/09/28
 } charger_type_t;
 
 struct battery_info {
@@ -599,7 +600,7 @@ static int s3c_cable_status_update(int status)
         power_supply_changed(&s3c_power_supplies[CHARGER_USB]);
         power_supply_changed(&s3c_power_supplies[CHARGER_AC]);
 	*/
-	dev_dbg(dev, "%s : call power_supply_changed\n", __func__);
+	dev_dbg(dev, "%s : call power_supply_changed\n", __func__); 
 	return ret;
 }
 
@@ -618,13 +619,12 @@ static void s3c_bat_status_update(struct power_supply *bat_ps)
 	s3c_bat_info.bat_info.batt_temp = s3c_get_bat_temp(bat_ps);
 	s3c_bat_info.bat_info.level = s3c_get_bat_level(bat_ps);
 	s3c_bat_info.bat_info.batt_vol = s3c_get_bat_vol(bat_ps);
-#if 1 /* TERRY(2010-0201): Update .batt_is_full */
-   if (s3c_bat_info.bat_info.level == 100) {
-      s3c_bat_info.bat_info.batt_is_full = 1;
-   }if (old_is_full != s3c_bat_info.bat_info.batt_is_full) {
+#if 1 /* Update .batt_is_full,  modified by chris(CVKK)  2010/09/28 */
+	s3c_bat_info.bat_info.batt_is_full = s3c_bat_info.bat_info.level == 100 ? 1 : 0;  
+#endif
+   if (old_is_full != s3c_bat_info.bat_info.batt_is_full) {
       led_update = 1;
    }
-#endif
      
 	if (old_level != s3c_bat_info.bat_info.level 
 			|| old_temp != s3c_bat_info.bat_info.batt_temp
@@ -664,7 +664,7 @@ static void s3c_power_work(struct work_struct* work)
    
    // Update cable status
    if (dc_status == 0) {
-      source = CHARGER_BATTERY;
+      source = CHARGER_DISCHARGE;  // modified by chris(CVKK)  2010/09/28
    } else if (dc_status == 1) {
       source = CHARGER_AC;
    } else {
@@ -685,14 +685,15 @@ static void s3c_power_work(struct work_struct* work)
    if (led_update) {
       int led_color = 1; // GREEN
       if (!s3c_bat_info.bat_info.batt_is_full) {
-	 if (s3c_bat_info.bat_info.charging_source == CHARGER_AC) {
-	    led_color = 2; // RED
-	 } else if (s3c_bat_info.bat_info.level <= WARNING_BAT_LEVEL) {
-	    led_color = 3; // ORANGE
-	 }
+		if (s3c_bat_info.bat_info.charging_source == CHARGER_AC) {
+			led_color = 2; // RED
+		} else if (s3c_bat_info.bat_info.level <= WARNING_BAT_LEVEL) {
+			led_color = 3; // ORANGE
+		}
+		else led_color = 0; // LED OFF (discharging)   // added by chris(CVKK)  2010/09/28
       }
       if (smartq_gpio_led_ctl(led_color) == 0) {
-	 led_update = 0;
+		led_update = 0;
       }
    }
    
@@ -749,7 +750,7 @@ static int __devinit s3c_bat_probe(struct platform_device *pdev)
 	s3c_bat_info.bat_info.batt_temp_adc_cal = 0;
 	s3c_bat_info.bat_info.batt_current = 0;
 	s3c_bat_info.bat_info.level = 0;
-	s3c_bat_info.bat_info.charging_source = CHARGER_BATTERY;
+	s3c_bat_info.bat_info.charging_source = CHARGER_UNKNOWN;  // modified by chris(CVKK)  2010/09/28
 	s3c_bat_info.bat_info.charging_enabled = 0;
 	s3c_bat_info.bat_info.batt_health = POWER_SUPPLY_HEALTH_GOOD;
 
@@ -812,7 +813,7 @@ static void s3c_bat_init_hw(void)
    /* Initialize GPK */
    val = __raw_readl(S3C64XX_GPKPUD);
    val &= ~((3<<8)|(3<<10)|(3<<12));
-   val |= (2<<12);
+   val |= (2<<12) | (2<<10) | (2<<8);   // stat1(GPK4)/stat2(GPK5) are open collectors
    __raw_writel(val, S3C64XX_GPKPUD);
    
    /* Init CHARG_S1, S2 */
