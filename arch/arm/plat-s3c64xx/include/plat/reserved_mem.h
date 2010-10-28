@@ -32,9 +32,9 @@
 #define RESERVED_PMEM_PREVIEW		(3 * 1024 * 1024)
 #define RESERVED_PMEM_RENDER		(4 * 1024 * 1024)
 #define RESERVED_PMEM_STREAM		(0 * 1024 * 1024)
-#define RESERVED_G3D			(20 * 1024 * 1024) 	/* G3D is shared with MFC, CMM and PMEM_STREAM */
+#define RESERVED_G3D			(16 * 1024 * 1024) 	/* G3D is shared with MFC, CMM and PMEM_STREAM */
 #define RESERVED_PMEM_GPU1		(0 * 1024 * 1024)
-#define RESERVED_PMEM			(14 * 1024 * 1024)	// WVGA : 10, HVGA : 8
+#define RESERVED_PMEM			(18 * 1024 * 1024)	// WVGA : 10, HVGA : 8
 #define RESERVED_PMEM_SKIA		(0)
 
 #endif /* CONFIG_SMDK6410_RAMSIZE_256M */
