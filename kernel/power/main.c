@@ -332,6 +332,11 @@ static int suspend_enter(suspend_state_t state)
 	return error;
 }
 
+#define RESUME_DEBUG
+#ifdef RESUME_DEBUG
+extern int s3c_debug_resume(void);
+#endif
+
 /**
  *	suspend_devices_and_enter - suspend devices and enter the desired system
  *				    sleep state.
@@ -378,6 +383,10 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_ops->finish)
 		suspend_ops->finish();
  Resume_devices:
+#ifdef RESUME_DEBUG
+	s3c_debug_resume();
+	printk("s3c_debug_resume console start.\n");
+#endif
 	suspend_test_start();
 	device_resume(PMSG_RESUME);
 	suspend_test_finish("resume devices");

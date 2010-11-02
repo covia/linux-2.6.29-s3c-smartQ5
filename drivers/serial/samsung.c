@@ -1239,6 +1239,46 @@ static int s3c_serial_resume(struct platform_device *dev)
 
 	return 0;
 }
+
+#define RESUME_DEBUG
+
+#ifdef RESUME_DEBUG
+static struct platform_device *ccdev = NULL;
+
+int s3c_debug_resume()
+{
+	struct uart_port *port = s3c_dev_to_port(&ccdev->dev);
+	struct s3c_uart_port *ourport = to_ourport(port);
+
+	unsigned int gpadata = 0;
+
+	if (port) {
+		clk_enable(ourport->clk);
+		s3c_serial_resetport(port, s3c_port_to_cfg(port));
+		clk_disable(ourport->clk);
+		s3c6410_pm_do_restore(uart_save + port->line * SAVE_UART_PORT, SAVE_UART_PORT);
+		uart_resume_port(&s3c_uart_drv, port);
+	}
+
+	if(port->line == 1)
+	{
+		s3c_gpio_cfgpin(S3C64XX_GPA(7), S3C_GPIO_SFN(1));
+
+		gpadata = __raw_readl(S3C64XX_GPADAT);
+		gpadata &= ~(1<<7);
+		__raw_writel(gpadata, S3C64XX_GPADAT);
+		s3c_gpio_setpull(S3C64XX_GPA(7), S3C_GPIO_PULL_NONE);
+		s3c_gpio_cfgpin(S3C64XX_GPA(7), S3C_GPIO_SFN(2));
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(s3c_debug_resume);
+
+#endif
+
+
 #endif
 
 int s3c_serial_init(struct platform_driver *drv,
@@ -1495,6 +1535,11 @@ int s3c_serial_initconsole(struct platform_driver *drv,
 	s3c_serial_init_ports(info);
 
 	register_console(&s3c_serial_console);
+
+#ifdef RESUME_DEBUG
+    ccdev = dev;
+#endif
+
 	return 0;
 }
 
