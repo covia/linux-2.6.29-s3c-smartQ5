@@ -29,6 +29,11 @@ extern unsigned int s3c64xx_cpufreq_index;
 extern unsigned int S3C64XX_FREQ_TAB;
 extern unsigned int S3C64XX_MAXFREQLEVEL;
 extern unsigned int s3c64xx_target_frq(unsigned int pred_freq, int flag);
+// chris(CVKK)
+extern int set_voltage(unsigned int);
+extern int s3c6410_pm_target(unsigned int target_freq);  
+extern int is_userspace_gov(void);
+// end chris(CVKK)
 extern void set_dvfs_level(int flag);
 extern void set_dvfs_perf_level(void);
 #endif /* __PLAT_S3C64XX_DVFS_H */

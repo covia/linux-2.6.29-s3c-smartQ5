@@ -29,6 +29,7 @@
 
 #include <plat/regs-timer.h>
 #include <mach/regs-irq.h>
+#include <asm/io.h>
 
 #if 1 /* TERRY(2010-0317): GPIO relative PM support */
 #include <plat/pm.h>
@@ -234,6 +235,7 @@ err:
 static int smartq_gpio_usb_init(void)
 {
    int ret = 0;
+   unsigned int val;
    
    ret = gpio_request(S3C64XX_GPL(0), "GPL");
    if (ret < 0) {
@@ -294,6 +296,9 @@ static int smartq_gpio_usb_init(void)
 	     __func__,ret);
       goto err;
    }
+   val = __raw_readl(S3C64XX_GPLPUD);
+   val &= ~(3<<(11*2));    /* Pull-Up/Down disabled */
+   __raw_writel(val, S3C64XX_GPLPUD);
    
 err:
    
@@ -442,9 +447,10 @@ static int smartq_gpio_remove(struct platform_device *dev)
 
 #if 1 /* TERRY(2010-0317): GPIO relative PM support */
 static struct sleep_save_phy usb_gpio_reg[] =  {
-	SAVE_ITEM(S3C64XX_GPL(0)),    /* USB Host Power */
+	// the on/off order has been modified by chris(CVKK)  2010/11/03
 	SAVE_ITEM(S3C64XX_GPL(8)),    /* External USB */
 	SAVE_ITEM(S3C64XX_GPL(1)),    /* Internal USB */
+	SAVE_ITEM(S3C64XX_GPL(0)),    /* USB Host Power */
 	SAVE_ITEM(S3C64XX_GPL(11)),   /* External Over Current Detect */
 };
 

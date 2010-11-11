@@ -55,6 +55,7 @@
 
 #include <plat/pm.h>
 #include <plat/s3c64xx-dvfs.h>
+
 #if 1 /* TERRY (2010-0419): Save timer register */
 #include <plat/regs-timer.h>
 #endif
@@ -206,8 +207,10 @@ static struct sleep_save core_save[] = {
 	SAVE_ITEM(S3C_MPLL_CON),
 	SAVE_ITEM(S3C_EPLL_CON0),
 	SAVE_ITEM(S3C_EPLL_CON1),
+#if 0 /* marked by chris(CVKK)  2010/11/11 */	
 	SAVE_ITEM(S3C_NORMAL_CFG),
 	SAVE_ITEM(S3C_AHB_CON0),
+#endif	
 };
 
 static struct sleep_save gpio_save[] = {
@@ -733,6 +736,20 @@ static int s3c6410_pm_enter(suspend_state_t state)
 		return -EINVAL;
 	}
 
+// added by chris(CVKK)  2010/11/11
+#ifdef CONFIG_CPU_FREQ    
+    if(!is_userspace_gov()) {
+       tmp = s3c64xx_target_frq(0xFFFFFFFF, 1);
+       s3c6410_pm_target(tmp);
+     }
+     else {
+#ifdef USE_DVS
+        set_voltage(0);
+#endif
+     }
+#endif
+// end by chris(CVKK)
+
 	/* prepare check area if configured */
 	s3c6410_pm_check_prepare();
 
@@ -787,7 +804,11 @@ static int s3c6410_pm_enter(suspend_state_t state)
 	__raw_writel(0x00000000, S3C_MEM0_CLK_GATE);
 
 	__raw_writel(0x1, S3C_OSC_STABLE);
+#if 1 /* modified by chris(CVKK)  2010/11/11 */
+	__raw_writel(0x1, S3C_PWR_STABLE);
+#else
 	__raw_writel(0x3, S3C_PWR_STABLE);
+#endif	
 
 	/* Set WFI instruction to SLEEP mode */
 
@@ -889,7 +910,7 @@ static struct platform_suspend_ops s3c6410_pm_ops = {
 int __init s3c6410_pm_init(void)
 {
 	printk("S3C6410 Power Management, (c) 2008 Samsung Electronics\n");
-
+ 
 	suspend_set_ops(&s3c6410_pm_ops);
 
 #ifdef CONFIG_S3C64XX_DOMAIN_GATING

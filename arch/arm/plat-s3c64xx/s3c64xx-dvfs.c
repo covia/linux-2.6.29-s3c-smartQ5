@@ -29,6 +29,7 @@ extern int set_pmic(unsigned int pwr, unsigned int voltage);
 
 unsigned int S3C64XX_MAXFREQLEVEL = 3;
 static unsigned int s3c64xx_cpufreq_level = 3;
+static char userspace_governor[CPUFREQ_NAME_LEN] = "userspace";  // chris(CVKK)
 unsigned int s3c64xx_cpufreq_index = 0;
 static spinlock_t dvfs_lock;
 
@@ -292,6 +293,19 @@ s3c64xx_target_freq_index_end:
 	return index; 
 } 
 
+// added by chris(CVKK)
+int is_userspace_gov(void)
+{
+       int ret = 0;
+
+       if(!strnicmp(cpufreq_governor_name, userspace_governor, CPUFREQ_NAME_LEN)) {
+               ret = 1;
+       }
+
+       return ret;
+}
+// end by chris(CVKK)
+
 int s3c6410_verify_speed(struct cpufreq_policy *policy)
 {
 	if(policy->cpu)
@@ -399,6 +413,42 @@ static int s3c6410_target(struct cpufreq_policy *policy,
 s3c6410_target_end:
 	return ret;
 }
+
+// chris(CVKK)
+int s3c6410_pm_target(unsigned int target_freq)
+{
+       struct clk * mpu_clk;
+       int ret = 0;
+       unsigned long arm_clk;
+       unsigned int index;
+
+       mpu_clk = clk_get(NULL, MPU_CLK);
+       if(IS_ERR(mpu_clk))
+               return PTR_ERR(mpu_clk);
+
+       index = s3c64xx_target_freq_index(target_freq);
+       if(index == INDX_ERROR) {
+          printk(KERN_ERR "s3c6410_target: INDX_ERROR \n");
+          return -EINVAL;
+       }       
+
+       arm_clk = s3c6410_freq_table[S3C64XX_FREQ_TAB][index].frequency;
+       target_freq = arm_clk;
+
+#ifdef USE_DVS
+       set_voltage(index);
+#endif /* USE_DVS */
+       /* frequency scaling */
+       ret = clk_set_rate(mpu_clk, target_freq * KHZ_T);
+       if(ret != 0) {
+               printk(KERN_ERR "frequency scaling error\n");
+               return -EINVAL;
+       }
+       
+       clk_put(mpu_clk);
+       return ret;
+}
+// chris(CVKK)
 
 unsigned int get_min_cpufreq(void)
 {
