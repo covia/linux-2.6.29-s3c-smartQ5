@@ -1,0 +1,17 @@
+o compile:
+- export PATH=/usr/local/arm/4.2.2-eabi/usr/bin:$PATH
+- make ARCH=arm CROSS_COMPILE=arm-linux- distclean
+- make ARCH=arm CROSS_COMPILE=arm-linux- release
+- DIR=$PWD/../
+- make ARCH=arm CROSS_COMPILE=arm-linux- menuconfig
+     <M> Multimedia support  --->
+         <M>   Video For Linux
+         [*]   Video capture adapters  --->
+               [*]   V4L USB devices  --->
+                     <M>   USB Video Class (UVC)
+- make ARCH=arm CROSS_COMPILE=arm-linux- 
+o Copy following modules to /system/lib/modules
+   a. videodev.ko
+   b. uvcvideo.ko
+o When insmod, a->b
+o When rmmod,  b->a
